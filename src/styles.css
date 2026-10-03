@@ -1,0 +1,276 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-tint: var(--gold-tint);
+  --color-pos: var(--pos);
+  --color-pos-bg: var(--pos-bg);
+  --color-neg: var(--neg);
+  --color-neg-bg: var(--neg-bg);
+  --color-cat-sale: var(--cat-sale);
+  --color-cat-sale-bg: var(--cat-sale-bg);
+  --color-cat-purchase: var(--cat-purchase);
+  --color-cat-purchase-bg: var(--cat-purchase-bg);
+  --color-cat-expense: var(--cat-expense);
+  --color-cat-expense-bg: var(--cat-expense-bg);
+  --color-cat-uchhina: var(--cat-uchhina);
+  --color-cat-uchhina-bg: var(--cat-uchhina-bg);
+  --color-cat-investment: var(--cat-investment);
+  --color-cat-investment-bg: var(--cat-investment-bg);
+  --color-cat-drawing: var(--cat-drawing);
+  --color-cat-drawing-bg: var(--cat-drawing-bg);
+  --color-cat-transfer: var(--cat-transfer);
+  --color-cat-transfer-bg: var(--cat-transfer-bg);
+  --color-cat-refund: var(--cat-refund);
+  --color-cat-refund-bg: var(--cat-refund-bg);
+  --color-cat-other: var(--cat-other);
+  --color-cat-other-bg: var(--cat-other-bg);
+  --color-uch-taken: var(--uch-taken);
+  --color-uch-taken-bg: var(--uch-taken-bg);
+  --color-uch-returned: var(--uch-returned);
+  --color-uch-returned-bg: var(--uch-returned-bg);
+  --color-uch-out: var(--uch-out);
+  --color-uch-out-bg: var(--uch-out-bg);
+  --color-uch-advance: var(--uch-advance);
+  --color-uch-advance-bg: var(--uch-advance-bg);
+  --color-uch-pay: var(--uch-pay);
+  --color-uch-pay-bg: var(--uch-pay-bg);
+  --color-pl-green: var(--pl-green);
+  --color-pl-orange: var(--pl-orange);
+  --color-pl-red: var(--pl-red);
+  --color-pl-blue: var(--pl-blue);
+  --color-pl-purple: var(--pl-purple);
+  --color-pl-pink: var(--pl-pink);
+  --color-pl-yellow: var(--pl-yellow);
+  --color-pl-profit: var(--pl-profit);
+  --color-pl-loss: var(--pl-loss);
+  --color-pl-grey: var(--pl-grey);
+  --color-sl-total: var(--sl-total);
+  --color-sl-total-bg: var(--sl-total-bg);
+  --color-sl-paid: var(--sl-paid);
+  --color-sl-paid-bg: var(--sl-paid-bg);
+  --color-sl-pending: var(--sl-pending);
+  --color-sl-pending-bg: var(--sl-pending-bg);
+  --color-sl-advance: var(--sl-advance);
+  --color-sl-advance-bg: var(--sl-advance-bg);
+  --color-sl-part: var(--sl-part);
+  --color-sl-part-bg: var(--sl-part-bg);
+  --color-sl-customer: var(--sl-customer);
+  --color-sl-customer-bg: var(--sl-customer-bg);
+  --color-sl-settled: var(--sl-settled);
+  --color-sl-settled-bg: var(--sl-settled-bg);
+  --color-pu-total: var(--pu-total);
+  --color-pu-total-bg: var(--pu-total-bg);
+  --color-pu-paid: var(--pu-paid);
+  --color-pu-paid-bg: var(--pu-paid-bg);
+  --color-pu-pending: var(--pu-pending);
+  --color-pu-pending-bg: var(--pu-pending-bg);
+  --color-pu-advance: var(--pu-advance);
+  --color-pu-advance-bg: var(--pu-advance-bg);
+  --color-pu-supplier: var(--pu-supplier);
+  --color-pu-supplier-bg: var(--pu-supplier-bg);
+
+}
+
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --navy: oklch(0.31 0.09 285);
+  --navy-foreground: oklch(0.99 0.01 100);
+  --gold: oklch(0.77 0.13 80);
+  --gold-soft: oklch(0.95 0.1 105);
+  --gold-tint: oklch(0.975 0.035 100);
+
+  --background: oklch(0.985 0.002 285);
+  --foreground: oklch(0.24 0.015 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.015 280);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.015 280);
+  --primary: oklch(0.31 0.09 285);
+  --primary-foreground: oklch(0.99 0.01 100);
+  --secondary: oklch(0.96 0.005 285);
+  --secondary-foreground: oklch(0.31 0.09 285);
+  --muted: oklch(0.96 0.005 285);
+  --muted-foreground: oklch(0.55 0.02 265);
+  --accent: oklch(0.975 0.035 100);
+  --accent-foreground: oklch(0.31 0.09 285);
+  --destructive: oklch(0.5 0.18 22);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.92 0.006 285);
+  --input: oklch(0.92 0.006 285);
+  --ring: oklch(0.77 0.13 80);
+
+  --pos: oklch(0.47 0.11 158);
+  --pos-bg: oklch(0.96 0.03 155);
+  --neg: oklch(0.5 0.18 22);
+  --neg-bg: oklch(0.95 0.02 20);
+
+  --cat-sale: oklch(0.47 0.11 158);
+  --cat-sale-bg: oklch(0.96 0.03 155);
+  --cat-purchase: oklch(0.48 0.12 60);
+  --cat-purchase-bg: oklch(0.97 0.03 80);
+  --cat-expense: oklch(0.5 0.18 22);
+  --cat-expense-bg: oklch(0.95 0.02 20);
+  --cat-uchhina: oklch(0.47 0.19 290);
+  --cat-uchhina-bg: oklch(0.94 0.03 300);
+  --cat-investment: oklch(0.45 0.14 260);
+  --cat-investment-bg: oklch(0.95 0.03 255);
+  --cat-drawing: oklch(0.47 0.16 350);
+  --cat-drawing-bg: oklch(0.95 0.03 340);
+  --cat-transfer: oklch(0.48 0.08 195);
+  --cat-transfer-bg: oklch(0.96 0.02 190);
+  --cat-refund: oklch(0.47 0.1 85);
+  --cat-refund-bg: oklch(0.97 0.04 95);
+  --cat-other: oklch(0.45 0.015 270);
+  --cat-other-bg: oklch(0.95 0.004 285);
+
+  --uch-taken: #6941c6;
+  --uch-taken-bg: #f1eafe;
+  --uch-returned: #18794e;
+  --uch-returned-bg: #e7f7ee;
+  --uch-out: #a35b00;
+  --uch-out-bg: #fff3dd;
+  --uch-advance: #2457a7;
+  --uch-advance-bg: #e8f1ff;
+  --uch-pay: #b42318;
+  --uch-pay-bg: #fdecea;
+
+  --pl-green: #e7f7ee;
+  --pl-orange: #fff3dd;
+  --pl-red: #fdebec;
+  --pl-blue: #e8f1ff;
+  --pl-purple: #f1eafe;
+  --pl-pink: #ffeaf2;
+  --pl-yellow: #fff6d8;
+  --pl-profit: #ddf5e7;
+  --pl-loss: #fadadd;
+  --pl-grey: #f4f5f7;
+
+  --sl-total: #2457a7;
+  --sl-total-bg: #e8f1ff;
+  --sl-paid: #18794e;
+  --sl-paid-bg: #e7f7ee;
+  --sl-pending: #b4232c;
+  --sl-pending-bg: #fdebec;
+  --sl-advance: #6941c6;
+  --sl-advance-bg: #f1eafe;
+  --sl-part: #a35b00;
+  --sl-part-bg: #fff3dd;
+  --sl-customer: #8a6500;
+  --sl-customer-bg: #fff6d8;
+  --sl-settled: #525866;
+  --sl-settled-bg: #f0f1f4;
+  --pu-total: #a2510b;
+  --pu-total-bg: #fff0e2;
+  --pu-paid: #18794e;
+  --pu-paid-bg: #e7f7ee;
+  --pu-pending: #b4232c;
+  --pu-pending-bg: #fdebec;
+  --pu-advance: #6941c6;
+  --pu-advance-bg: #f1eafe;
+  --pu-supplier: #0f6f78;
+  --pu-supplier-bg: #e3f6f7;
+
+
+  --chart-1: oklch(0.31 0.09 285);
+  --chart-2: oklch(0.77 0.13 80);
+  --chart-3: oklch(0.47 0.11 158);
+  --chart-4: oklch(0.5 0.18 22);
+  --chart-5: oklch(0.47 0.19 290);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.31 0.09 285);
+  --sidebar-primary: oklch(0.31 0.09 285);
+  --sidebar-primary-foreground: oklch(0.99 0.01 100);
+  --sidebar-accent: oklch(0.975 0.035 100);
+  --sidebar-accent-foreground: oklch(0.31 0.09 285);
+  --sidebar-border: oklch(0.92 0.006 285);
+  --sidebar-ring: oklch(0.77 0.13 80);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+

@@ -1,0 +1,1 @@
+alter function public.reset_accounting_data() security invoker;
