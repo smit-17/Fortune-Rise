@@ -40,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/lepdo-logo.png.asset.json";
+import lepdoaccountlogo from "@/assets/lepdoaccountlogo.png";
 import { EntryDrawer, type DrawerConfig } from "./EntryDrawer";
 import type { CategoryId } from "@/lib/lepdo/types";
 import { PRESETS, rangeFor, type Preset } from "@/lib/lepdo/period";
@@ -145,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border bg-navy px-4">
-            <img src={logo.url} alt="LEPDO" className="h-7 w-auto object-contain" />
+            <img src={lepdoaccountlogo} alt="LEPDO" className="h-7 w-auto object-contain" />
             <button
               type="button"
               aria-label="Close menu"

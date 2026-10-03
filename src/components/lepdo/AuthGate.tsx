@@ -3,7 +3,7 @@ import { Loader2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logo from "@/assets/lepdo-logo.png.asset.json";
+import lepdoaccountlogo from "@/assets/lepdoaccountlogo.png";
 import { useAuth } from "@/lib/auth/auth";
 import { changeOwnPassword, sendPasswordReset } from "@/lib/auth/adminApi";
 
@@ -20,7 +20,7 @@ function Frame({
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-[400px] rounded-2xl border border-border bg-card p-6 shadow-lg">
         <div className="mb-5 flex items-center justify-center rounded-xl bg-navy px-4 py-3">
-          <img src={logo.url} alt="LEPDO" className="h-8 w-auto object-contain" />
+          <img src={lepdoaccountlogo} alt="LEPDO" className="h-8 w-auto object-contain" />
         </div>
         <h1 className="text-lg font-semibold text-navy">{title}</h1>
         {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}

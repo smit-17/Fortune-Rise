@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import logo from "@/assets/lepdo-logo.png.asset.json";
+import lepdoaccountlogo from "@/assets/lepdoaccountlogo.png";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -74,7 +74,7 @@ function ResetPasswordPage() {
     <div className="flex min-h-[70vh] items-center justify-center px-4">
       <div className="w-full max-w-[400px] rounded-2xl border border-border bg-card p-6 shadow-lg">
         <div className="mb-5 flex items-center justify-center rounded-xl bg-navy px-4 py-3">
-          <img src={logo.url} alt="LEPDO" className="h-8 w-auto object-contain" />
+          <img src={lepdoaccountlogo} alt="LEPDO" className="h-8 w-auto object-contain" />
         </div>
         <h1 className="text-lg font-semibold text-navy">Set a new password</h1>
         {done ? (
