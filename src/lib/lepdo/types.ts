@@ -234,6 +234,8 @@ export interface Transaction {
   expenseCategory?: string | undefined;
   /** false = recorded but not yet paid (no bank/cash effect) */
   expensePaid?: boolean | undefined;
+  /** custom Bank/Cash category name from Settings (stored with category "other") */
+  customCategory?: string | undefined;
   /** true when the entry was recorded through Bank Entry / Cash Entry
    * (owned by the Bank Ledger / Cash Book, regardless of its category label) */
   ledger?: boolean | undefined;

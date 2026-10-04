@@ -44,9 +44,12 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime, formatMoney, todayISO } from "@/lib/lepdo/format";
 import { MoneyInput, NumInput, toNum } from "@/components/lepdo/numeric";
 import { useLepdo, partyName, type NewEntryInput } from "@/lib/lepdo/store";
+import { ledgerCategoryName, ledgerCategoryOptions } from "@/lib/lepdo/masters";
+import type { MasterValue } from "@/lib/lepdo/types";
 import type { CategoryId, Transaction } from "@/lib/lepdo/types";
 import { BANK_PRESETS, bankRange, periodLabel, type BankPreset } from "@/lib/lepdo/bank";
-import { CASH_BOOKS, CASH_CATEGORIES, cashCategoryLabel, fixedDirection } from "@/lib/lepdo/cash";
+import { CASH_BOOKS, cashCategoryLabel, fixedDirection } from "@/lib/lepdo/cash";
+import { expenseCategoryOptions } from "@/lib/lepdo/expense";
 import { categoryTone } from "@/lib/lepdo/constants";
 import { Combo } from "@/components/lepdo/sales/ui";
 import {
@@ -136,7 +139,10 @@ function CashBookPage() {
             !t.voided &&
             t.date >= from &&
             t.date <= to &&
-            (categoryFilter === "all" || t.category === categoryFilter),
+            (categoryFilter === "all" ||
+              (categoryFilter.startsWith("custom:")
+                ? t.customCategory === categoryFilter.slice(7)
+                : t.category === categoryFilter && !t.customCategory)),
         )
         .sort((a, b) =>
           a.date === b.date ? b.createdAt.localeCompare(a.createdAt) : b.date.localeCompare(a.date),
@@ -189,7 +195,7 @@ function CashBookPage() {
       )
       .map((t) => ({
         date: t.date,
-        category: cashCategoryLabel(t.category),
+        category: cashLabel(t.category, store.masters, t.customCategory),
         particulars: t.particulars,
         reference: t.reference ?? "",
         cashIn: t.direction === "in" ? t.amount : 0,
@@ -286,11 +292,13 @@ function CashBookPage() {
             </SelectTrigger>
             <SelectContent align="end">
               <SelectItem value="all">All Categories</SelectItem>
-              {CASH_CATEGORIES.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.label}
-                </SelectItem>
-              ))}
+              {ledgerCategoryOptions(store.masters, "cashBookCategories", undefined, true).map(
+                (c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                  </SelectItem>
+                ),
+              )}
             </SelectContent>
           </Select>
 
@@ -408,7 +416,7 @@ function CashBookPage() {
                         {formatDate(t.date)}
                       </td>
                       <td className="px-3 py-2">
-                        <CashCategoryBadge id={t.category} />
+                        <CashCategoryBadge id={t.category} custom={t.customCategory} />
                       </td>
                       <td className="max-w-[360px] px-3 py-2 text-muted-foreground">
                         <span className="block break-words">{t.particulars}</span>
@@ -451,7 +459,7 @@ function CashBookPage() {
                         {t.particulars}
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <CashCategoryBadge id={t.category} />
+                        <CashCategoryBadge id={t.category} custom={t.customCategory} />
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -503,7 +511,7 @@ function CashBookPage() {
               {[
                 ["Date", formatDate(viewing.date)],
                 ["Cash Book", book.name],
-                ["Category", cashCategoryLabel(viewing.category)],
+                ["Category", cashLabel(viewing.category, store.masters, viewing.customCategory)],
                 ["Transfer ID", viewing.transferGroupId ?? "—"],
                 ["Created by", viewing.createdBy],
                 ["Type", viewing.direction === "in" ? "Cash In" : "Cash Out"],
@@ -556,7 +564,18 @@ function CashBookPage() {
   );
 }
 
-function CashCategoryBadge({ id }: { id: CategoryId | null }) {
+function cashLabel(
+  id: CategoryId | null,
+  masters: Record<string, MasterValue[]>,
+  custom?: string | undefined,
+): string {
+  if (!id) return "Unclassified";
+  if (custom) return custom;
+  return ledgerCategoryName(masters, "cashBookCategories", id, cashCategoryLabel(id));
+}
+
+function CashCategoryBadge({ id, custom }: { id: CategoryId | null; custom?: string | undefined }) {
+  const { masters } = useLepdo();
   return (
     <span
       className={cn(
@@ -564,7 +583,7 @@ function CashCategoryBadge({ id }: { id: CategoryId | null }) {
         categoryTone(id),
       )}
     >
-      {cashCategoryLabel(id)}
+      {cashLabel(id, masters, custom)}
     </span>
   );
 }
@@ -579,6 +598,8 @@ interface FormState {
   amount: string;
   reference: string;
   notes: string;
+  expenseCategory: string;
+  customCategory: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -591,6 +612,8 @@ const emptyForm = (): FormState => ({
   amount: "",
   reference: "",
   notes: "",
+  expenseCategory: "",
+  customCategory: "",
 });
 
 function CashEntryForm({
@@ -630,6 +653,8 @@ function CashEntryForm({
             amount: String(editing.amount),
             reference: editing.reference ?? "",
             notes: editing.notes ?? "",
+            expenseCategory: editing.expenseCategory ?? "",
+            customCategory: editing.customCategory ?? "",
           }
         : emptyForm(),
     );
@@ -642,6 +667,7 @@ function CashEntryForm({
   const needsParty = form.category === "sale_payment" || form.category === "purchase_payment";
   const isCashTransfer = form.category === "cash_transfer";
   const isBankMove = form.category === "bank_to_cash" || form.category === "cash_to_bank";
+  const isCashExpense = form.category === "expense";
   const forced = fixedDirection(form.category);
   const direction: "in" | "out" = isCashTransfer ? "out" : (forced ?? form.direction);
   const otherBook = CASH_BOOKS.find((b) => b.id !== bookId)!;
@@ -651,7 +677,8 @@ function CashEntryForm({
   }, [forced, form.direction]);
 
   const duplicate = useMemo(() => {
-    if (!(amount > 0)) return null;
+    // Duplicate checks disabled: identical entries are allowed.
+    if (amount === amount) return null;
     return (
       store.transactions.find(
         (t) =>
@@ -691,6 +718,10 @@ function CashEntryForm({
     }
     if (needsParty && !form.partyName.trim()) {
       toast.error("Select or enter a party.");
+      return;
+    }
+    if (isCashExpense && !form.expenseCategory) {
+      toast.error("Select the expense category for this cash expense.");
       return;
     }
     const negative = direction === "out" && projected < 0;
@@ -776,6 +807,9 @@ function CashEntryForm({
         reference: form.reference.trim() || undefined,
         notes: form.notes.trim() || undefined,
         ledger: true,
+        customCategory:
+          form.category === "other" && form.customCategory ? form.customCategory : undefined,
+        ...(isCashExpense ? { expenseCategory: form.expenseCategory, expensePaid: true } : {}),
       };
     }
 
@@ -789,11 +823,14 @@ function CashEntryForm({
     onClose();
   };
 
-  const categories = CASH_CATEGORIES.filter(
+  const categories = ledgerCategoryOptions(store.masters, "cashBookCategories", {
+    category: form.category,
+    custom: form.customCategory,
+  }).filter(
     (c) =>
       !(
         editing &&
-        (c.id === "cash_transfer" || c.id === "bank_to_cash" || c.id === "cash_to_bank")
+        (c.value === "cash_transfer" || c.value === "bank_to_cash" || c.value === "cash_to_bank")
       ),
   );
 
@@ -840,13 +877,22 @@ function CashEntryForm({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Category">
-              <Select value={form.category} onValueChange={(v) => set("category", v as CategoryId)}>
+              <Select
+                value={form.customCategory ? `custom:${form.customCategory}` : form.category}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    category: v.startsWith("custom:") ? "other" : (v as CategoryId),
+                    customCategory: v.startsWith("custom:") ? v.slice(7) : "",
+                  }))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.value} value={c.value}>
                       {c.label}
                     </SelectItem>
                   ))}
@@ -887,6 +933,30 @@ function CashEntryForm({
                   .map((p) => p.name)}
                 placeholder="Select or type a party"
               />
+            </Field>
+          ) : null}
+
+          {isCashExpense ? (
+            <Field label="Expense category">
+              <Select
+                value={form.expenseCategory}
+                onValueChange={(v) => set("expenseCategory", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select expense category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {expenseCategoryOptions(store.masters, form.expenseCategory).map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This entry will also appear in the Expense Ledger as Paid, linked to this cash
+                entry.
+              </p>
             </Field>
           ) : null}
 

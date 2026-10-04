@@ -1,5 +1,7 @@
 import { uid } from "./format";
 import type { MasterValue } from "./types";
+import { BANK_ENTRY_OPTIONS } from "./bank";
+import { CASH_CATEGORIES } from "./cash";
 
 export interface MasterMeta {
   id: string;
@@ -7,6 +9,10 @@ export interface MasterMeta {
   /** short helper shown under the master name */
   hint: string;
   defaults: string[];
+  /** stable ids for built-in defaults (the id is the category key the app logic uses;
+   *  the name is only the editable label). Built-ins can be renamed / deactivated,
+   *  never deleted. */
+  fixedIds?: string[];
 }
 
 /**
@@ -14,6 +20,20 @@ export interface MasterMeta {
  * (Settings › Master Data) and are never rewritten on historical records.
  */
 export const MASTERS: MasterMeta[] = [
+  {
+    id: "bankEntryCategories",
+    label: "Bank Entry Categories",
+    hint: "Category dropdown on Add Bank Entry. Custom categories save as Other.",
+    defaults: BANK_ENTRY_OPTIONS.map((c) => c.label),
+    fixedIds: BANK_ENTRY_OPTIONS.map((c) => c.id),
+  },
+  {
+    id: "cashBookCategories",
+    label: "Cash Book Categories",
+    hint: "Category dropdown on Add Cash Entry. Custom categories save as Other.",
+    defaults: CASH_CATEGORIES.map((c) => c.label),
+    fixedIds: CASH_CATEGORIES.map((c) => c.id),
+  },
   {
     id: "persons",
     label: "Persons",
@@ -186,7 +206,11 @@ export const MASTER_IDS = MASTERS.map((m) => m.id);
 export function buildDefaultMasters(): Record<string, MasterValue[]> {
   const out: Record<string, MasterValue[]> = {};
   for (const m of MASTERS) {
-    out[m.id] = m.defaults.map((name) => ({ id: uid("mv"), name, active: true }));
+    out[m.id] = m.defaults.map((name, i) => ({
+      id: m.fixedIds?.[i] ?? uid("mv"),
+      name,
+      active: true,
+    }));
   }
   return out;
 }
@@ -208,14 +232,18 @@ export function mergeMasters(
     const defaults = base[key] ?? [];
     const retired = new Set(RETIRED_MASTER_VALUES[key] ?? []);
     const seen = new Set<string>();
+    const seenIds = new Set<string>();
     const kept: MasterValue[] = [];
     for (const v of list) {
       const norm = v.name.trim().toLowerCase();
       if (!norm || retired.has(norm) || seen.has(norm)) continue;
       seen.add(norm);
+      seenIds.add(v.id);
       kept.push(v);
     }
-    out[key] = [...kept, ...defaults.filter((d) => !seen.has(d.name.trim().toLowerCase()))];
+    out[key] = [...kept, ...defaults.filter(
+        (d) => !seen.has(d.name.trim().toLowerCase()) && !seenIds.has(d.id),
+      )];
   }
   return out;
 }
@@ -231,3 +259,46 @@ export function masterOptions(
 }
 
 export const TAX_SLABS = [0, 0.25, 1.5, 3, 5, 12, 18, 28];
+
+export function isFixedMasterValue(masterId: string, id: string): boolean {
+  return !!MASTERS.find((m) => m.id === masterId)?.fixedIds?.includes(id);
+}
+
+export interface LedgerCategoryOption {
+  /** select value: the built-in id, or `custom:<name>` */
+  value: string;
+  label: string;
+}
+
+/** Dropdown options for a section category master (built-ins by id, customs by name). */
+export function ledgerCategoryOptions(
+  masters: Record<string, MasterValue[]>,
+  masterId: string,
+  current?: { category?: string | null; custom?: string | null },
+  includeInactive = false,
+): LedgerCategoryOption[] {
+  const meta = MASTERS.find((m) => m.id === masterId);
+  const fixed = new Set(meta?.fixedIds ?? []);
+  const out: LedgerCategoryOption[] = [];
+  for (const v of masters[masterId] ?? []) {
+    const value = fixed.has(v.id) ? v.id : `custom:${v.name}`;
+    const isCurrent = current?.custom
+      ? value === `custom:${current.custom}`
+      : !!current?.category && value === current.category;
+    if (!v.active && !includeInactive && !isCurrent) continue;
+    out.push({ value, label: v.name });
+  }
+  if (current?.custom && !out.some((o) => o.value === `custom:${current.custom}`))
+    out.push({ value: `custom:${current.custom}`, label: current.custom });
+  return out;
+}
+
+/** Current label of a built-in section category (renamed in Settings), else fallback. */
+export function ledgerCategoryName(
+  masters: Record<string, MasterValue[]>,
+  masterId: string,
+  id: string,
+  fallback: string,
+): string {
+  return (masters[masterId] ?? []).find((v) => v.id === id)?.name ?? fallback;
+}

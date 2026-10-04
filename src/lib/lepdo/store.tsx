@@ -56,6 +56,7 @@ export interface NewEntryInput {
   drawingCategory?: string | undefined;
   expenseCategory?: string | undefined;
   expensePaid?: boolean | undefined;
+  customCategory?: string | undefined;
   /** true for entries recorded through Bank Entry / Cash Entry */
   ledger?: boolean | undefined;
   /** destination for transfer categories */
@@ -543,6 +544,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       drawingCategory: input.drawingCategory,
       expenseCategory: input.expenseCategory,
       expensePaid: input.expensePaid,
+      customCategory: input.customCategory,
       ledger: input.ledger,
       history: [
         {
@@ -636,19 +638,10 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
     [data.salesInvoices, data.purchaseBills],
   );
 
+  // Duplicate checks are disabled: identical entries are allowed.
   const isLikelyDuplicate = useCallback(
-    (input: NewEntryInput, ignoreId?: string) =>
-      data.transactions.some(
-        (t) =>
-          t.id !== ignoreId &&
-          !t.voided &&
-          t.date === input.date &&
-          round2(t.amount) === round2(input.amount) &&
-          t.accountId === input.accountId &&
-          t.direction === input.direction &&
-          (t.reference ?? "") === (input.reference?.trim() ?? ""),
-      ),
-    [data.transactions],
+    (_input: NewEntryInput, _ignoreId?: string) => false,
+    [],
   );
 
   const addEntry = useCallback<StoreValue["addEntry"]>(
@@ -970,23 +963,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (!(input.total > 0))
         return { ok: false, message: "Invoice total must be greater than zero." };
 
-      const clash = data.salesInvoices.find(
-        (i) =>
-          i.id !== input.id &&
-          !i.voided &&
-          (i.number.toLowerCase() === number.toLowerCase() ||
-            (i.partyId === input.partyId &&
-              i.date === input.date &&
-              round2(i.total) === round2(input.total))),
-      );
-      if (clash)
-        return {
-          ok: false,
-          message:
-            clash.number.toLowerCase() === number.toLowerCase()
-              ? `Invoice number ${number} already exists.`
-              : `A matching invoice (${clash.number}) already exists for this customer, date and amount.`,
-        };
+
 
       const now = new Date().toISOString();
       const id = input.id ?? uid("si");
@@ -1172,10 +1149,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (!(input.total > 0))
         return { ok: false, message: "Bill total must be greater than zero." };
 
-      const clash = data.purchaseBills.find(
-        (b) => b.id !== input.id && !b.voided && b.number.toLowerCase() === number.toLowerCase(),
-      );
-      if (clash) return { ok: false, message: `Bill number ${number} already exists.` };
+
 
 
       const now = new Date().toISOString();
@@ -1466,7 +1440,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           (i) => hit(i.platform) || hit(i.currency) || hit(i.saleType) || hit(i.gstType),
         ) ||
         data.purchaseBills.some((b) => hit(b.currency) || hit(b.purchaseType)) ||
-        data.transactions.some((t) => hit(t.expenseCategory) || hit(t.drawingCategory)) ||
+        data.transactions.some((t) => hit(t.expenseCategory) || hit(t.drawingCategory) || hit(t.customCategory)) ||
         data.salesInvoices.some((i) =>
           (i.jewelryItems ?? []).some(
             (j) =>

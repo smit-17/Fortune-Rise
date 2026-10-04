@@ -44,6 +44,8 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime, formatMoney, todayISO } from "@/lib/lepdo/format";
 import { MoneyInput, NumInput, toNum } from "@/components/lepdo/numeric";
 import { useLepdo, partyName, type NewEntryInput } from "@/lib/lepdo/store";
+import { ledgerCategoryName, ledgerCategoryOptions } from "@/lib/lepdo/masters";
+import type { MasterValue } from "@/lib/lepdo/types";
 import type { CategoryId, Transaction } from "@/lib/lepdo/types";
 import {
   BANKS,
@@ -101,6 +103,7 @@ interface FormState {
   reference: string;
   notes: string;
   expenseCategory: string;
+  customCategory: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -116,14 +119,24 @@ const emptyForm = (): FormState => ({
   reference: "",
   notes: "",
   expenseCategory: "",
+  customCategory: "",
 });
 
-function bankCategoryLabel(id: CategoryId | null): string {
+function bankCategoryLabel(
+  id: CategoryId | null,
+  masters?: Record<string, MasterValue[]>,
+  custom?: string | undefined,
+): string {
   if (!id) return "Unclassified";
-  return BANK_CATEGORIES.find((c) => c.id === id)?.label ?? categoryLabel(id);
+  if (custom) return custom;
+  const base = BANK_CATEGORIES.find((c) => c.id === id)?.label ?? categoryLabel(id);
+  const ui = uiCategoryFromCategoryId(id);
+  if (!masters || (ui === "other" && id !== "other")) return base;
+  return ui ? ledgerCategoryName(masters, "bankEntryCategories", ui, base) : base;
 }
 
-function BankCategoryBadge({ id }: { id: CategoryId | null }) {
+function BankCategoryBadge({ id, custom }: { id: CategoryId | null; custom?: string | undefined }) {
+  const { masters } = useLepdo();
   return (
     <span
       className={cn(
@@ -131,7 +144,7 @@ function BankCategoryBadge({ id }: { id: CategoryId | null }) {
         categoryTone(id),
       )}
     >
-      {bankCategoryLabel(id)}
+      {bankCategoryLabel(id, masters, custom)}
     </span>
   );
 }
@@ -237,7 +250,7 @@ function BankLedgerPage() {
       .map((t) => ({
         date: t.date,
         bank: bankName(t.accountId),
-        category: bankCategoryLabel(t.category),
+        category: bankCategoryLabel(t.category, store.masters, t.customCategory),
         particulars: t.particulars,
         reference: t.reference ?? "",
         credit: t.direction === "in" ? t.amount : 0,
@@ -438,7 +451,7 @@ function BankLedgerPage() {
                         {bankName(t.accountId)}
                       </td>
                       <td className="px-3 py-2">
-                        <BankCategoryBadge id={t.category} />
+                        <BankCategoryBadge id={t.category} custom={t.customCategory} />
                       </td>
                       <td className="max-w-[320px] px-3 py-2 text-muted-foreground">
                         <span className="block break-words">{t.particulars}</span>
@@ -483,7 +496,7 @@ function BankLedgerPage() {
                         {t.particulars}
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <BankCategoryBadge id={t.category} />
+                        <BankCategoryBadge id={t.category} custom={t.customCategory} />
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -533,7 +546,7 @@ function BankLedgerPage() {
               {[
                 ["Date", formatDate(viewing.date)],
                 ["Bank", bankName(viewing.accountId)],
-                ["Category", bankCategoryLabel(viewing.category)],
+                ["Category", bankCategoryLabel(viewing.category, store.masters, viewing.customCategory)],
                 ["Transfer ID", viewing.transferGroupId ?? "—"],
                 ["Created by", viewing.createdBy],
                 ["Type", viewing.direction === "in" ? "Credit (received)" : "Debit (paid)"],
@@ -625,6 +638,7 @@ function BankEntryForm({
             reference: editing.reference ?? "",
             notes: editing.notes ?? "",
             expenseCategory: editing.expenseCategory ?? "",
+            customCategory: editing.customCategory ?? "",
           }
         : emptyForm(),
     );
@@ -660,7 +674,8 @@ function BankEntryForm({
   );
 
   const duplicate = useMemo(() => {
-    if (!(amount > 0)) return null;
+    // Duplicate checks disabled: identical entries are allowed.
+    if (amount === amount) return null;
     return (
       store.transactions.find(
         (t) =>
@@ -734,6 +749,8 @@ function BankEntryForm({
       reference: form.reference.trim() || undefined,
       notes: form.notes.trim() || undefined,
       ledger: true,
+      customCategory:
+        form.category === "other" && form.customCategory ? form.customCategory : undefined,
       ...(isBankExpense
         ? { expenseCategory: form.expenseCategory, expensePaid: true }
         : {}),
@@ -790,11 +807,12 @@ function BankEntryForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Category">
               <Select
-                value={form.category}
+                value={form.customCategory ? `custom:${form.customCategory}` : form.category}
                 onValueChange={(v) =>
                   setForm((f) => ({
                     ...f,
-                    category: v as BankUiCategory,
+                    category: v.startsWith("custom:") ? "other" : (v as BankUiCategory),
+                    customCategory: v.startsWith("custom:") ? v.slice(7) : "",
                     destinationKind: "",
                     destinationId: "",
                   }))
@@ -804,13 +822,16 @@ function BankEntryForm({
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {BANK_ENTRY_OPTIONS.filter((c) => !(editing && c.id === "bank_transfer")).map(
-                    (c) => (
-                      <SelectItem key={c.id} value={c.id}>
+                  {ledgerCategoryOptions(store.masters, "bankEntryCategories", {
+                    category: form.category,
+                    custom: form.customCategory,
+                  })
+                    .filter((c) => !(editing && c.value === "bank_transfer"))
+                    .map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
                         {c.label}
                       </SelectItem>
-                    ),
-                  )}
+                    ))}
                 </SelectContent>
               </Select>
             </Field>

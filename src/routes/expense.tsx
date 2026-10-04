@@ -64,6 +64,7 @@ import {
   expenseBadge,
   expenseHead,
 } from "@/lib/lepdo/expense";
+import { CASH_BOOKS } from "@/lib/lepdo/cash";
 import {
   downloadExpenseCsv,
   downloadExpenseExcel,
@@ -161,22 +162,36 @@ function ExpensePage() {
       ? "Unpaid"
       : (sources.find((s) => s.id === t.accountId)?.label ?? "—");
 
-  const goToSource = () => {
-    void navigate({ to: "/bank-ledger" });
+  const goToSource = (t: Transaction) => {
+    void navigate({ to: t.sourceType === "cash" ? "/cash-book" : "/bank-ledger" });
   };
 
   /** true when this expense row is a Bank Entry debit categorised as Expense */
   const isBankLinked = (t: Transaction) => isLedgerEntry(t) && t.sourceType === "bank";
+
+  /** true when this expense row is a Cash Book entry categorised as Expense */
+  const isCashLinked = (t: Transaction) => isLedgerEntry(t) && t.sourceType === "cash";
+
+  /** true when this expense row is linked to a Bank Entry or Cash Book entry */
+  const isSourceLinked = (t: Transaction) => isBankLinked(t) || isCashLinked(t);
 
   const bankLabel = (t: Transaction) =>
     BANKS.find((b) => b.id === t.accountId)?.bankName ??
     store.bankAccounts.find((b) => b.id === t.accountId)?.nickname ??
     "Bank";
 
+  const cashLabel = (t: Transaction) =>
+    CASH_BOOKS.find((c) => c.id === t.accountId)?.name ??
+    store.cashLocations.find((c) => c.id === t.accountId)?.name ??
+    "Cash";
+
+  const sourceEntryLabel = (t: Transaction) =>
+    isCashLinked(t) ? `Cash Entry · ${cashLabel(t)}` : `Bank Entry · ${bankLabel(t)}`;
+
   /**
    * Every non-deleted expense: entries recorded in the Expense section, plus
-   * Bank Entry debits categorised as Expense (linked by their own transaction id,
-   * never duplicated). Cash Book entries are deliberately excluded.
+   * Bank Entry debits and Cash Book entries categorised as Expense (linked by
+   * their own transaction id, never duplicated).
    */
   const allExpenses = useMemo(
     () =>
@@ -184,7 +199,8 @@ function ExpensePage() {
         (t) =>
           t.category === "expense" &&
           !t.voided &&
-          (!isLedgerEntry(t) || (t.sourceType === "bank" && t.direction === "out")),
+          (!isLedgerEntry(t) ||
+            ((t.sourceType === "bank" || t.sourceType === "cash") && t.direction === "out")),
       ),
     [store.transactions],
   );
@@ -509,7 +525,7 @@ function ExpensePage() {
                         {formatDate(t.date)}
                       </td>
                       <td className="px-3 py-2">
-                        {isBankLinked(t) && !t.expenseCategory ? (
+                        {isSourceLinked(t) && !t.expenseCategory ? (
                           <span className="inline-flex whitespace-nowrap rounded-md bg-pl-loss px-2 py-1 text-xs font-medium text-navy">
                             Category missing
                           </span>
@@ -538,14 +554,14 @@ function ExpensePage() {
                         </span>
                       </td>
                       <td className="max-w-[320px] px-3 py-2">
-                        {isBankLinked(t) ? (
+                        {isSourceLinked(t) ? (
                           <div className="space-y-1">
                             <span className="inline-flex whitespace-nowrap rounded-md bg-pl-blue px-2 py-1 text-xs font-medium text-navy">
-                              Bank Entry · {bankLabel(t)}
+                              {sourceEntryLabel(t)}
                             </span>
                             <button
                               type="button"
-                              onClick={() => goToSource()}
+                              onClick={() => goToSource(t)}
                               className="block text-xs font-medium text-navy underline underline-offset-2"
                             >
                               View Source
@@ -563,8 +579,11 @@ function ExpensePage() {
                       <td className="px-2 py-2 text-right">
                         <RowMenu
                           onView={() => setViewing(t)}
-                          linked={isBankLinked(t)}
-                          onSource={goToSource}
+                          linked={isSourceLinked(t)}
+                          linkedLabel={
+                            isCashLinked(t) ? "Edit in Cash Book" : "Edit in Bank Ledger"
+                          }
+                          onSource={() => goToSource(t)}
                           onEdit={() => {
                             setEditing(t);
                             setFormOpen(true);
@@ -591,16 +610,16 @@ function ExpensePage() {
                         {t.particulars}
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {isBankLinked(t) && !t.expenseCategory ? (
+                        {isSourceLinked(t) && !t.expenseCategory ? (
                           <span className="inline-flex whitespace-nowrap rounded-md bg-pl-loss px-2 py-1 text-xs font-medium text-navy">
                             Category missing
                           </span>
                         ) : (
                           <CategoryChip head={expenseHead(t.expenseCategory)} />
                         )}
-                        {isBankLinked(t) ? (
+                        {isSourceLinked(t) ? (
                           <span className="inline-flex whitespace-nowrap rounded-md bg-pl-blue px-2 py-1 text-xs font-medium text-navy">
-                            Bank Entry · {bankLabel(t)}
+                            {sourceEntryLabel(t)}
                           </span>
                         ) : null}
                       </div>
@@ -611,8 +630,9 @@ function ExpensePage() {
                       </span>
                       <RowMenu
                         onView={() => setViewing(t)}
-                        linked={isBankLinked(t)}
-                        onSource={goToSource}
+                        linked={isSourceLinked(t)}
+                        linkedLabel={isCashLinked(t) ? "Edit in Cash Book" : "Edit in Bank Ledger"}
+                        onSource={() => goToSource(t)}
                         onEdit={() => {
                           setEditing(t);
                           setFormOpen(true);
@@ -754,12 +774,14 @@ function RowMenu({
   onEdit,
   onVoid,
   linked,
+  linkedLabel,
   onSource,
 }: {
   onView: () => void;
   onEdit: () => void;
   onVoid: () => void;
   linked?: boolean;
+  linkedLabel?: string;
   onSource?: () => void;
 }) {
   return (
@@ -772,7 +794,7 @@ function RowMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onView}>View</DropdownMenuItem>
         {linked ? (
-          <DropdownMenuItem onClick={onSource}>Edit in Bank Ledger</DropdownMenuItem>
+          <DropdownMenuItem onClick={onSource}>{linkedLabel ?? "Edit in Bank Ledger"}</DropdownMenuItem>
         ) : (
           <>
             <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
@@ -839,7 +861,8 @@ function ExpenseForm({
   const amount = Number(form.amount) || 0;
 
   const duplicate = useMemo(() => {
-    if (!(amount > 0)) return null;
+    // Duplicate checks disabled: identical entries are allowed.
+    if (amount === amount) return null;
     const head = form.category || DEFAULT_EXPENSE_CATEGORY;
     return (
       store.transactions.find(

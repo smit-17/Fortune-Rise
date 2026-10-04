@@ -153,6 +153,7 @@ interface CapitalForm {
   id: string | null;
   date: string;
   partyId: string;
+  manualParty: string;
   category: "owner_investment" | "owner_drawing";
   sourceType: SourceType;
   accountId: string;
@@ -162,10 +163,13 @@ interface CapitalForm {
   notes: string;
 }
 
+const MANUAL_PARTY = "__manual__";
+
 const emptyCapitalForm = (): CapitalForm => ({
   id: null,
   date: todayISO(),
   partyId: DRAWING_PARTIES[0]?.id ?? "",
+  manualParty: "",
   category: "owner_investment",
   sourceType: "bank",
   accountId: "",
@@ -211,6 +215,7 @@ function CapitalTab() {
       id: t.id,
       date: t.date,
       partyId: t.partyId ?? DRAWING_PARTIES[0]?.id ?? "",
+      manualParty: "",
       category: t.category === "owner_drawing" ? "owner_drawing" : "owner_investment",
       sourceType: t.sourceType,
       accountId: t.accountId,
@@ -224,8 +229,11 @@ function CapitalTab() {
 
   const submit = () => {
     const amount = Number(form.amount);
-    if (!form.partyId) {
-      toast.error("Select a founder / party.");
+    const manualName = form.manualParty.trim();
+    if (!form.partyId || (form.partyId === MANUAL_PARTY && !manualName)) {
+      toast.error(
+        form.partyId === MANUAL_PARTY ? "Enter the founder / party name." : "Select a founder / party.",
+      );
       return;
     }
     if (!form.accountId) {
@@ -236,6 +244,11 @@ function CapitalTab() {
       toast.error("Enter an amount greater than zero.");
       return;
     }
+    let partyId = form.partyId;
+    if (partyId === MANUAL_PARTY) {
+      const match = partyOptions.find((p) => p.name.trim().toLowerCase() === manualName.toLowerCase());
+      partyId = match ? match.id : store.addParty(manualName, "founder").id;
+    }
     const input: NewEntryInput = {
       date: form.date,
       sourceType: form.sourceType,
@@ -243,7 +256,7 @@ function CapitalTab() {
       direction: form.category === "owner_investment" ? "in" : "out",
       amount,
       category: form.category,
-      partyId: form.partyId,
+      partyId,
       particulars:
         form.particulars.trim() ||
         (form.category === "owner_investment" ? "Owner investment" : "Owner withdrawal"),
@@ -560,8 +573,17 @@ function CapitalTab() {
                     {p.name}
                   </SelectItem>
                 ))}
+                <SelectItem value={MANUAL_PARTY}>+ Enter manually</SelectItem>
               </SelectContent>
             </Select>
+            {form.partyId === MANUAL_PARTY ? (
+              <Input
+                className="mt-2 h-9"
+                placeholder="Founder / Party name"
+                value={form.manualParty}
+                onChange={(e) => setForm((f) => ({ ...f, manualParty: e.target.value }))}
+              />
+            ) : null}
           </Field>
           <Field label="Type">
             <Select
@@ -1478,6 +1500,47 @@ function EntryFormModal({
 
 /* ================= EMI Tracker ================= */
 
+/** Compact one-row summary of an EMI plan; full schedule opens in View Details. */
+function EmiPlanSummary({
+  v,
+  onView,
+}: {
+  v: ReturnType<typeof buildEmiSchedule>;
+  onView: () => void;
+}) {
+  const next = v.schedule.find((r) => !r.paid);
+  const paidTotal = v.schedule.reduce((s, r) => s + (r.paid && r.payment ? r.payment.amount : 0), 0);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">
+          {formatMoney(v.plan.amount)}/month · Due day {v.plan.dueDay} · Starts{" "}
+          {formatDate(v.plan.startDate)} · Paid {v.paidCount}/{v.schedule.length} · Overdue{" "}
+          {v.overdueCount}
+        </p>
+        <p className="text-sm text-foreground">
+          {next ? (
+            <>
+              Next due: <span className="font-medium">{formatDate(next.dueDate)}</span> ·{" "}
+              <span className="num">{formatMoney(next.amount)}</span>{" "}
+              <Chip tone={next.status === "Overdue" ? "red" : "grey"}>{next.status}</Chip>
+            </>
+          ) : (
+            <Chip tone="green">All instalments paid</Chip>
+          )}
+          <span className="ml-2 text-xs text-muted-foreground">
+            Paid so far <span className="num">{formatMoney(paidTotal)}</span> · Remaining{" "}
+            {v.remainingCount}
+          </span>
+        </p>
+      </div>
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onView}>
+        View Details
+      </Button>
+    </div>
+  );
+}
+
 interface EmiForm {
   id: string | null;
   name: string;
@@ -1521,6 +1584,7 @@ function EmiTab() {
     dueDate: string;
   } | null>(null);
   const [undoTarget, setUndoTarget] = useState<EmiPayment | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const plans = store.emiPlans;
   const views = useMemo(
@@ -1647,6 +1711,9 @@ function EmiTab() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setDetailId(v.plan.id)}>
+                      View Details
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
                         setEditing(v.plan);
@@ -1663,67 +1730,7 @@ function EmiTab() {
               </div>
             }
           >
-            <p className="mb-2 text-xs text-muted-foreground">
-              {formatMoney(v.plan.amount)}/month · Due day {v.plan.dueDay} · Starts{" "}
-              {formatDate(v.plan.startDate)} · Paid {v.paidCount}/{v.schedule.length} · Overdue{" "}
-              {v.overdueCount}
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-sm">
-                <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold">Month</th>
-                    <th className="px-3 py-2 text-left font-semibold">Due Date</th>
-                    <th className="px-3 py-2 text-right font-semibold">Amount</th>
-                    <th className="px-3 py-2 text-left font-semibold">Status</th>
-                    <th className="px-2 py-2 text-right font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {v.schedule.map((r) => (
-                    <tr key={r.month} className="border-t border-border">
-                      <td className="px-3 py-2">{r.month}</td>
-                      <td className="whitespace-nowrap px-3 py-2">{formatDate(r.dueDate)}</td>
-                      <td className="num whitespace-nowrap px-3 py-2 text-right">
-                        {formatMoney(r.amount)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Chip
-                          tone={
-                            r.status === "Paid" ? "green" : r.status === "Overdue" ? "red" : "grey"
-                          }
-                        >
-                          {r.status}
-                        </Chip>
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {r.paid ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-destructive"
-                            onClick={() => r.payment && setUndoTarget(r.payment)}
-                          >
-                            Undo
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() =>
-                              setPayTarget({ plan: v.plan, month: r.month, dueDate: r.dueDate })
-                            }
-                          >
-                            Mark Paid
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <EmiPlanSummary v={v} onView={() => setDetailId(v.plan.id)} />
           </SectionCard>
         ))
       )}
@@ -1739,21 +1746,116 @@ function EmiTab() {
                     {formatMoney(v.plan.amount)}/month · Paid {v.paidCount}/{v.schedule.length}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    store.saveRecord("emiPlans", { ...v.plan, closed: false });
-                    toast.success("EMI plan reopened.");
-                  }}
-                >
-                  Reopen
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setDetailId(v.plan.id)}>
+                    View Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      store.saveRecord("emiPlans", { ...v.plan, closed: false });
+                      toast.success("EMI plan reopened.");
+                    }}
+                  >
+                    Reopen
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         </SectionCard>
       ) : null}
+
+      {(() => {
+        const dv = [...views, ...closedViews].find((x) => x.plan.id === detailId);
+        return (
+          <Dialog open={!!dv} onOpenChange={(o) => !o && setDetailId(null)}>
+            <DialogContent className="flex max-h-[92dvh] max-w-3xl flex-col gap-0 p-0">
+              <DialogHeader className="border-b border-border px-5 py-4 text-left">
+                <DialogTitle className="text-navy">{dv?.plan.name ?? "EMI"}</DialogTitle>
+                <DialogDescription>
+                  {dv
+                    ? `${formatMoney(dv.plan.amount)}/month · Due day ${dv.plan.dueDay} · Starts ${formatDate(dv.plan.startDate)} · Debit: ${accountLabel(dv.plan.paidFromType, dv.plan.paidFromId)} · Paid ${dv.paidCount}/${dv.schedule.length} · Overdue ${dv.overdueCount}`
+                    : ""}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto px-5 py-4">
+                {dv ? (
+                  <table className="w-full min-w-[600px] text-sm">
+                    <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold">Month</th>
+                        <th className="px-3 py-2 text-left font-semibold">Due Date</th>
+                        <th className="px-3 py-2 text-right font-semibold">Amount</th>
+                        <th className="px-3 py-2 text-left font-semibold">Status</th>
+                        <th className="px-3 py-2 text-left font-semibold">Paid On</th>
+                        <th className="px-2 py-2 text-right font-semibold">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dv.schedule.map((r) => (
+                        <tr key={r.month} className="border-t border-border">
+                          <td className="px-3 py-2">{r.month}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{formatDate(r.dueDate)}</td>
+                          <td className="num whitespace-nowrap px-3 py-2 text-right">
+                            {formatMoney(r.amount)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Chip
+                              tone={
+                                r.status === "Paid"
+                                  ? "green"
+                                  : r.status === "Overdue"
+                                    ? "red"
+                                    : "grey"
+                              }
+                            >
+                              {r.status}
+                            </Chip>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
+                            {r.paid && r.payment
+                              ? `${formatDate(r.payment.date)} · ${formatMoney(r.payment.amount)}`
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                            {r.paid ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-destructive"
+                                onClick={() => r.payment && setUndoTarget(r.payment)}
+                              >
+                                Undo
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() =>
+                                  setPayTarget({
+                                    plan: dv.plan,
+                                    month: r.month,
+                                    dueDate: r.dueDate,
+                                  })
+                                }
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <EmiFormModal open={formOpen} editing={editing} onClose={() => setFormOpen(false)} />
 

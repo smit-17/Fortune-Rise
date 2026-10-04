@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime, formatMoney, uid } from "@/lib/lepdo/format";
 import { useLepdo } from "@/lib/lepdo/store";
 import { DEFAULT_SETTINGS } from "@/lib/lepdo/extras";
-import { MASTERS } from "@/lib/lepdo/masters";
+import { MASTERS, isFixedMasterValue } from "@/lib/lepdo/masters";
 import type { AppSettings, AppUser, Contact, MasterValue, UserPermission } from "@/lib/lepdo/types";
 import { UserManagement } from "@/components/lepdo/UserManagement";
 import { resetAccountingData } from "@/lib/auth/adminApi";
@@ -685,6 +685,13 @@ type PanelId =
   | "cashBooks"
   | (typeof MASTERS)[number]["id"];
 
+const SECTION_CATEGORY_MASTERS = [
+  "bankEntryCategories",
+  "cashBookCategories",
+  "expenseCategories",
+  "drawingCategories",
+];
+
 function MasterData() {
   const [panel, setPanel] = useState<PanelId>("platforms");
 
@@ -706,8 +713,18 @@ function MasterData() {
       ],
     },
     {
+      label: "Section categories",
+      items: MASTERS.filter((m) => SECTION_CATEGORY_MASTERS.includes(m.id)).map((m) => ({
+        id: m.id as PanelId,
+        label: m.label,
+      })),
+    },
+    {
       label: "Dropdown lists",
-      items: MASTERS.map((m) => ({ id: m.id as PanelId, label: m.label })),
+      items: MASTERS.filter((m) => !SECTION_CATEGORY_MASTERS.includes(m.id)).map((m) => ({
+        id: m.id as PanelId,
+        label: m.label,
+      })),
     },
   ];
 
@@ -807,6 +824,10 @@ function MasterListPanel({
   };
 
   const remove = (v: MasterValue) => {
+    if (isFixedMasterValue(masterId, v.id)) {
+      toast.message("Built-in categories can't be deleted — use Deactivate to hide it.");
+      return;
+    }
     const res = store.removeMaster(masterId, v.id);
     if (res.ok) toast.success(res.message);
     else toast.message(res.message);
@@ -874,9 +895,11 @@ function MasterListPanel({
                   >
                     {v.active ? "Deactivate" : "Activate"}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(v)}>
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  {isFixedMasterValue(masterId, v.id) ? null : (
+                    <Button size="sm" variant="ghost" onClick={() => remove(v)}>
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
                 </>
               )}
             </div>
