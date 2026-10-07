@@ -212,6 +212,8 @@ export interface Allocation {
 
 export interface Transaction {
   id: string;
+  /** set when this payment was removed together with the invoice/bill it was linked to */
+  voidedByInvoiceId?: string | undefined;
   code: string;
   date: string;
   sourceType: SourceType;
@@ -540,6 +542,11 @@ export interface EmiPlan {
   endDate?: string | undefined;
   installments?: number | undefined;
   notes?: string | undefined;
+  /** Reminder-only extras */
+  lender?: string | undefined;
+  loanType?: string | undefined;
+  interestRate?: number | undefined;
+  reference?: string | undefined;
   closed?: boolean | undefined;
   createdAt: string;
   createdBy: string;

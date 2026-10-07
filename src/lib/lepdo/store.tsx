@@ -283,6 +283,25 @@ function nextCode(): string {
   return `TXN-${counter}`;
 }
 
+
+function cascadeLinkedPayments(
+  transactions: Transaction[],
+  invoiceId: string,
+  category: "sale_payment" | "purchase_payment",
+  voided: boolean,
+): Transaction[] {
+  const now = new Date().toISOString();
+  return transactions.map((t) => {
+    if (voided) {
+      if (t.voided || t.category !== category) return t;
+      if (!(t.allocations ?? []).some((a) => a.invoiceId === invoiceId && a.amount > 0)) return t;
+      return { ...t, voided: true, voidedByInvoiceId: invoiceId, updatedAt: now };
+    }
+    if (!t.voided || t.voidedByInvoiceId !== invoiceId) return t;
+    return { ...t, voided: false, voidedByInvoiceId: undefined, updatedAt: now };
+  });
+}
+
 export function LepdoProvider({ children }: { children: ReactNode; userId?: string }) {
   const [data, setData] = useState<LepdoData>(() => buildSeed());
   const [ready, setReady] = useState(false);
@@ -1030,8 +1049,16 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
 
   const voidSalesInvoice = useCallback<StoreValue["voidSalesInvoice"]>(
     (id) => {
-      setData((prev) => ({
+      setData((base) => {
+        const txs = cascadeLinkedPayments(base.transactions, id, "sale_payment", true);
+        let prev = base;
+        txs.forEach((t, n) => {
+          if (t !== base.transactions[n])
+            prev = applyAllocations(prev, t.allocations, "sales", -1);
+        });
+        return {
         ...prev,
+        transactions: txs,
         salesInvoices: prev.salesInvoices.map((i) =>
           i.id === id ? { ...i, voided: true, updatedAt: new Date().toISOString() } : i,
         ),
@@ -1043,15 +1070,24 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           ),
           ...prev.auditLogs,
         ],
-      }));
+      };
+      });
     },
-    [log],
+    [applyAllocations, log],
   );
 
   const restoreSalesInvoice = useCallback<StoreValue["restoreSalesInvoice"]>(
     (id) => {
-      setData((prev) => ({
+      setData((base) => {
+        const txs = cascadeLinkedPayments(base.transactions, id, "sale_payment", false);
+        let prev = base;
+        txs.forEach((t, n) => {
+          if (t !== base.transactions[n])
+            prev = applyAllocations(prev, t.allocations, "sales", 1);
+        });
+        return {
         ...prev,
+        transactions: txs,
         salesInvoices: prev.salesInvoices.map((i) =>
           i.id === id ? { ...i, voided: false, updatedAt: new Date().toISOString() } : i,
         ),
@@ -1063,9 +1099,10 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           ),
           ...prev.auditLogs,
         ],
-      }));
+      };
+      });
     },
-    [log],
+    [applyAllocations, log],
   );
 
   const saveCustomer = useCallback<StoreValue["saveCustomer"]>(
@@ -1216,8 +1253,16 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
 
   const voidPurchaseBill = useCallback<StoreValue["voidPurchaseBill"]>(
     (id) => {
-      setData((prev) => ({
+      setData((base) => {
+        const txs = cascadeLinkedPayments(base.transactions, id, "purchase_payment", true);
+        let prev = base;
+        txs.forEach((t, n) => {
+          if (t !== base.transactions[n])
+            prev = applyAllocations(prev, t.allocations, "purchase", -1);
+        });
+        return {
         ...prev,
+        transactions: txs,
         purchaseBills: prev.purchaseBills.map((b) =>
           b.id === id ? { ...b, voided: true, updatedAt: new Date().toISOString() } : b,
         ),
@@ -1229,15 +1274,24 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           ),
           ...prev.auditLogs,
         ],
-      }));
+      };
+      });
     },
-    [log],
+    [applyAllocations, log],
   );
 
   const restorePurchaseBill = useCallback<StoreValue["restorePurchaseBill"]>(
     (id) => {
-      setData((prev) => ({
+      setData((base) => {
+        const txs = cascadeLinkedPayments(base.transactions, id, "purchase_payment", false);
+        let prev = base;
+        txs.forEach((t, n) => {
+          if (t !== base.transactions[n])
+            prev = applyAllocations(prev, t.allocations, "purchase", 1);
+        });
+        return {
         ...prev,
+        transactions: txs,
         purchaseBills: prev.purchaseBills.map((b) =>
           b.id === id ? { ...b, voided: false, updatedAt: new Date().toISOString() } : b,
         ),
@@ -1249,9 +1303,10 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           ),
           ...prev.auditLogs,
         ],
-      }));
+      };
+      });
     },
-    [log],
+    [applyAllocations, log],
   );
 
   const saveContact = useCallback<StoreValue["saveContact"]>(

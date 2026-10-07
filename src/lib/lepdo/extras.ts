@@ -116,16 +116,16 @@ const CAPITAL_BUCKETS: { key: string; label: string; tone: Tone; match: string[]
   { key: "dixit", label: "Dixit Capital", tone: "purple", match: ["dixit"] },
 ];
 
-/** Splits owner investment / drawing transactions into founder capital buckets. */
+/**
+ * Splits manually added owner investment entries into founder capital buckets.
+ * Drawings are owned by the Drawings section and never counted here.
+ */
 export function buildCapitalViews(
   transactions: Transaction[],
   partyNameOf: (id: string | null) => string,
 ): CapitalView[] {
   const rows = transactions.filter(
-    (t) =>
-      isPosted(t) &&
-      !isLedgerEntry(t) &&
-      (t.category === "owner_investment" || t.category === "owner_drawing"),
+    (t) => isPosted(t) && !isLedgerEntry(t) && t.category === "owner_investment",
   );
 
   const buckets: CapitalView[] = [

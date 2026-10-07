@@ -1,5 +1,14 @@
 # LEPDO — open tasks
 
+## Dashboard update
+- [x] Apply selected Balance First presentation with a header total, preserving existing calculations.
+- [x] Verify the signed-in dashboard and period filter at desktop and narrow widths.
+
+## EMI Tracker
+- [x] Active plans in one responsive card grid (3 desktop / 2 tablet / 1 phone), equal size, Next EMI date inside each card, no date heading rows, Closed plans in their own section below.
+- [x] Verify grid, sorting and wrapping in the signed-in preview at 1280 / 820 / 390 widths.
+- [x] EMI calculation spec (Loan Start Date informational only, reminder start from today, "Remaining Instalments as of Today", End Date = Next EMI + Remaining − 1 months, recalculate existing plans) — user declined on 2026-10-06 ("no need to change anything, everything works perfectly"); current behaviour stays as is, do not re-propose.
+
 ## Working style (standing rule)
 - Never ask for approval or mention credit usage; complete work in one shot.
 

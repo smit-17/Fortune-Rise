@@ -274,3 +274,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dashboard-view {
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.dashboard-heading {
+  font-family: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+

@@ -216,7 +216,7 @@ function CapitalTab() {
       date: t.date,
       partyId: t.partyId ?? DRAWING_PARTIES[0]?.id ?? "",
       manualParty: "",
-      category: t.category === "owner_drawing" ? "owner_drawing" : "owner_investment",
+      category: "owner_investment",
       sourceType: t.sourceType,
       accountId: t.accountId,
       amount: String(t.amount),
@@ -253,13 +253,12 @@ function CapitalTab() {
       date: form.date,
       sourceType: form.sourceType,
       accountId: form.accountId,
-      direction: form.category === "owner_investment" ? "in" : "out",
+      direction: "in",
       amount,
-      category: form.category,
+      category: "owner_investment",
       partyId,
       particulars:
-        form.particulars.trim() ||
-        (form.category === "owner_investment" ? "Owner investment" : "Owner withdrawal"),
+        form.particulars.trim() || "Owner investment",
       reference: form.reference.trim() || undefined,
       notes: form.notes.trim() || undefined,
       ledger: false,
@@ -286,20 +285,9 @@ function CapitalTab() {
     [store.transactions, store.parties],
   );
 
-  const total = useMemo(
-    () =>
-      buckets.reduce(
-        (acc, b) => ({
-          invested: acc.invested + b.invested,
-          withdrawn: acc.withdrawn + b.withdrawn,
-          balance: acc.balance + b.balance,
-        }),
-        { invested: 0, withdrawn: 0, balance: 0 },
-      ),
-    [buckets],
-  );
+  const totalInvested = useMemo(() => buckets.reduce((s, b) => s + b.invested, 0), [buckets]);
 
-  const allRows = useMemo(
+  const withBalance = useMemo(
     () =>
       buckets
         .flatMap((b) => b.rows.map((t) => ({ ...t, bucketLabel: b.label })))
@@ -309,20 +297,6 @@ function CapitalTab() {
     [buckets],
   );
 
-  // running balance needs oldest-first computation, then reverse for display
-  const withBalance = useMemo(() => {
-    const asc = [...allRows].sort((a, b) =>
-      a.date === b.date ? a.code.localeCompare(b.code) : a.date.localeCompare(b.date),
-    );
-    let bal = 0;
-    const map = new Map<string, number>();
-    for (const t of asc) {
-      bal += t.category === "owner_investment" ? t.amount : -t.amount;
-      map.set(t.id, bal);
-    }
-    return allRows.map((t) => ({ ...t, balance: map.get(t.id) ?? 0 }));
-  }, [allRows]);
-
   const paged = usePaged(withBalance, 25);
 
   const buildExport = (): ExportTable => ({
@@ -330,23 +304,34 @@ function CapitalTab() {
     subtitle: `As on ${formatDate(todayISO())}`,
     columns: [
       { key: "date", label: "Date", date: true },
-      { key: "account", label: "Account / Party" },
-      { key: "type", label: "Type" },
+      { key: "party", label: "Investor/Party" },
       { key: "particulars", label: "Particulars" },
-      { key: "invested", label: "Invested", money: true, align: "right" },
-      { key: "withdrawn", label: "Withdrawn", money: true, align: "right" },
-      { key: "balance", label: "Balance", money: true, align: "right" },
+      { key: "amount", label: "Investment Amount", money: true, align: "right" },
     ],
     rows: withBalance.map((t) => ({
       date: t.date,
-      account: `${partyName(store.parties, t.partyId)} — ${t.bucketLabel}`,
-      type: t.category === "owner_investment" ? "Investment" : "Withdrawal",
+      party: partyName(store.parties, t.partyId),
       particulars: t.particulars,
-      invested: t.category === "owner_investment" ? t.amount : "",
-      withdrawn: t.category === "owner_drawing" ? t.amount : "",
-      balance: t.balance,
+      amount: t.amount,
     })),
   });
+
+  const rowMenu = (t: Transaction) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-7" aria-label="Actions">
+          <MoreVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setSource(t)}>View details</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openEdit(t)}>Edit</DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive" onClick={() => setVoidTarget(t)}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-4">
@@ -355,35 +340,18 @@ function CapitalTab() {
           <SectionCard key={b.key} className="p-0">
             <div className={cn("rounded-xl p-4", TONE[b.tone].bg)}>
               <p className={cn("text-sm font-semibold", TONE[b.tone].text)}>{b.label}</p>
-              <dl className="mt-3 space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <dt className={TONE[b.tone].text}>Invested</dt>
-                  <dd className={cn("num font-semibold", TONE[b.tone].text)}>
-                    {formatMoney(b.invested)}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className={TONE[b.tone].text}>Withdrawn</dt>
-                  <dd className={cn("num font-semibold", TONE[b.tone].text)}>
-                    {formatMoney(b.withdrawn)}
-                  </dd>
-                </div>
-                <div className="flex justify-between border-t border-border/50 pt-1">
-                  <dt className={cn("font-medium", TONE[b.tone].text)}>Current Balance</dt>
-                  <dd className={cn("num font-bold", TONE[b.tone].text)}>
-                    {formatMoney(b.balance)}
-                  </dd>
-                </div>
-              </dl>
+              <p className={cn("num mt-3 text-xl font-bold", TONE[b.tone].text)}>
+                {formatMoney(b.invested)}
+              </p>
+              <p className={cn("text-xs", TONE[b.tone].text)}>{b.rows.length} entries</p>
             </div>
           </SectionCard>
         ))}
         <StatCard
-          label="Total Capital"
+          label="Total Investment Amount"
           tone="navy"
           icon={<Landmark className="size-4" />}
-          value={formatMoney(total.balance)}
-          hint={`Invested ${formatMoney(total.invested)} · Withdrawn ${formatMoney(total.withdrawn)}`}
+          value={formatMoney(totalInvested)}
         />
       </div>
 
@@ -400,23 +368,20 @@ function CapitalTab() {
       >
         {withBalance.length === 0 ? (
           <EmptyState
-            title="No capital transactions yet"
-            hint="Use Add Capital Entry to record an owner investment or withdrawal here."
+            title="No investment entries yet"
+            hint="Use Add Capital Entry to record a capital or investment entry here."
           />
         ) : (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold">Date</th>
-                    <th className="px-3 py-2 text-left font-semibold">Account / Party</th>
-                    <th className="px-3 py-2 text-left font-semibold">Type</th>
+                    <th className="px-3 py-2 text-left font-semibold">Investor/Party</th>
                     <th className="px-3 py-2 text-left font-semibold">Particulars</th>
-                    <th className="px-3 py-2 text-right font-semibold">Invested</th>
-                    <th className="px-3 py-2 text-right font-semibold">Withdrawn</th>
-                    <th className="px-3 py-2 text-right font-semibold">Balance</th>
-                    <th className="w-8 px-2 py-2" aria-label="Actions" />
+                    <th className="px-3 py-2 text-right font-semibold">Investment Amount</th>
+                    <th className="w-16 px-2 py-2 text-right font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -427,44 +392,13 @@ function CapitalTab() {
                         {partyName(store.parties, t.partyId)}
                         <span className="block text-xs text-muted-foreground">{t.bucketLabel}</span>
                       </td>
-                      <td className="px-3 py-2">
-                        <Chip tone={t.category === "owner_investment" ? "green" : "red"}>
-                          {t.category === "owner_investment" ? "Investment" : "Withdrawal"}
-                        </Chip>
-                      </td>
-                      <td className="max-w-[260px] px-3 py-2 text-muted-foreground">
+                      <td className="max-w-[300px] px-3 py-2 text-muted-foreground">
                         <span className="block break-words">{t.particulars}</span>
                       </td>
-                      <td className="num whitespace-nowrap px-3 py-2 text-right">
-                        {t.category === "owner_investment" ? formatMoney(t.amount) : "—"}
-                      </td>
-                      <td className="num whitespace-nowrap px-3 py-2 text-right">
-                        {t.category === "owner_drawing" ? formatMoney(t.amount) : "—"}
-                      </td>
                       <td className="num whitespace-nowrap px-3 py-2 text-right font-semibold text-navy">
-                        {formatMoney(t.balance)}
+                        {formatMoney(t.amount)}
                       </td>
-                      <td className="px-2 py-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-7">
-                              <MoreVertical className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSource(t)}>
-                              View details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(t)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => setVoidTarget(t)}
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
+                      <td className="px-2 py-2 text-right">{rowMenu(t)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -472,30 +406,21 @@ function CapitalTab() {
             </div>
             <ul className="divide-y divide-border lg:hidden">
               {paged.slice.map((t) => (
-                <li key={t.id} className="py-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
-                      <p className="mt-0.5 text-sm font-medium text-navy">
-                        {partyName(store.parties, t.partyId)} — {t.bucketLabel}
-                      </p>
-                      <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                        {t.particulars}
-                      </p>
-                      <div className="mt-1">
-                        <Chip tone={t.category === "owner_investment" ? "green" : "red"}>
-                          {t.category === "owner_investment" ? "Investment" : "Withdrawal"}
-                        </Chip>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-0.5">
-                      <span className="num text-sm font-semibold text-foreground">
-                        {formatMoney(t.amount)}
-                      </span>
-                      <span className="num text-xs text-muted-foreground">
-                        Bal {formatMoney(t.balance)}
-                      </span>
-                    </div>
+                <li key={t.id} className="flex items-start justify-between gap-2 py-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+                    <p className="mt-0.5 text-sm font-medium text-navy">
+                      {partyName(store.parties, t.partyId)}
+                    </p>
+                    <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                      {t.particulars}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="num text-sm font-semibold text-foreground">
+                      {formatMoney(t.amount)}
+                    </span>
+                    {rowMenu(t)}
                   </div>
                 </li>
               ))}
@@ -584,22 +509,6 @@ function CapitalTab() {
                 onChange={(e) => setForm((f) => ({ ...f, manualParty: e.target.value }))}
               />
             ) : null}
-          </Field>
-          <Field label="Type">
-            <Select
-              value={form.category}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, category: v as CapitalForm["category"] }))
-              }
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="owner_investment">Owner Investment</SelectItem>
-                <SelectItem value="owner_drawing">Owner Withdrawal</SelectItem>
-              </SelectContent>
-            </Select>
           </Field>
           <Field label="Amount (₹)">
             <MoneyInput
@@ -1498,60 +1407,143 @@ function EntryFormModal({
   );
 }
 
-/* ================= EMI Tracker ================= */
+/* ================= EMI Tracker (reminder only) ================= */
 
-/** Compact one-row summary of an EMI plan; full schedule opens in View Details. */
-function EmiPlanSummary({
+const LOAN_TYPES = [
+  "Home Loan",
+  "Car / Vehicle Loan",
+  "Personal Loan",
+  "Business Loan",
+  "Gold Loan",
+  "Credit Card EMI",
+  "Consumer Durable",
+  "Other",
+];
+
+type EmiStatus = "Upcoming" | "Due Today" | "Overdue" | "Completed";
+const EMI_STATUS_TONE: Record<EmiStatus, Tone> = {
+  Upcoming: "blue",
+  "Due Today": "orange",
+  Overdue: "red",
+  Completed: "green",
+};
+const EMI_DATE_CLASS: Record<EmiStatus, string> = {
+  Upcoming: "bg-pl-blue text-navy",
+  "Due Today": "bg-cat-purchase-bg text-cat-purchase",
+  Overdue: "bg-cat-expense-bg text-neg",
+  Completed: "bg-muted text-muted-foreground",
+};
+
+function emiStatusOf(v: ReturnType<typeof buildEmiSchedule>, today: string) {
+  const next = v.schedule.find((r) => !r.paid);
+  let status: EmiStatus = "Completed";
+  if (next) status = next.dueDate < today ? "Overdue" : next.dueDate === today ? "Due Today" : "Upcoming";
+  return { next, status };
+}
+
+function rowStatus(r: { paid: boolean; dueDate: string }, today: string): EmiStatus {
+  if (r.paid) return "Completed";
+  return r.dueDate < today ? "Overdue" : r.dueDate === today ? "Due Today" : "Upcoming";
+}
+
+function EmiCard({
   v,
+  accountText,
   onView,
+  onEdit,
+  onDelete,
+  onClose,
+  onMarkPaid,
 }: {
   v: ReturnType<typeof buildEmiSchedule>;
+  accountText: string;
   onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+  onMarkPaid: (row: { month: string; dueDate: string }) => void;
 }) {
-  const next = v.schedule.find((r) => !r.paid);
-  const paidTotal = v.schedule.reduce((s, r) => s + (r.paid && r.payment ? r.payment.amount : 0), 0);
+  const today = todayISO();
+  const { next, status } = emiStatusOf(v, today);
+  const p = v.plan;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="space-y-1">
-        <p className="text-xs text-muted-foreground">
-          {formatMoney(v.plan.amount)}/month · Due day {v.plan.dueDay} · Starts{" "}
-          {formatDate(v.plan.startDate)} · Paid {v.paidCount}/{v.schedule.length} · Overdue{" "}
-          {v.overdueCount}
-        </p>
-        <p className="text-sm text-foreground">
-          {next ? (
-            <>
-              Next due: <span className="font-medium">{formatDate(next.dueDate)}</span> ·{" "}
-              <span className="num">{formatMoney(next.amount)}</span>{" "}
-              <Chip tone={next.status === "Overdue" ? "red" : "grey"}>{next.status}</Chip>
-            </>
-          ) : (
-            <Chip tone="green">All instalments paid</Chip>
-          )}
-          <span className="ml-2 text-xs text-muted-foreground">
-            Paid so far <span className="num">{formatMoney(paidTotal)}</span> · Remaining{" "}
-            {v.remainingCount}
-          </span>
-        </p>
+    <SectionCard className="flex h-full flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm leading-snug font-semibold break-words text-navy">{p.name}</p>
+          <p className="mt-0.5 text-xs break-words text-muted-foreground">
+            {[p.lender, p.loanType].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Chip tone={EMI_STATUS_TONE[status]}>{status}</Chip>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" aria-label="EMI actions">
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onView}>View Details</DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+              <DropdownMenuItem onClick={onClose}>Close EMI</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={onDelete}>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onView}>
-        View Details
-      </Button>
-    </div>
+      <div className={cn("mt-3 flex items-center justify-between rounded-md px-3 py-2", EMI_DATE_CLASS[status])}>
+        <div>
+          <p className="text-[11px] uppercase tracking-wide opacity-80">Next EMI</p>
+          <p className="text-sm font-semibold">{next ? formatDate(next.dueDate) : "All paid"}</p>
+        </div>
+        <p className="num text-lg font-bold">{formatMoney(next ? next.amount : p.amount)}</p>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        <dt className="text-muted-foreground">Remaining</dt>
+        <dd className="text-right font-medium">
+          {v.remainingCount} of {v.schedule.length}
+        </dd>
+        <dt className="text-muted-foreground">Ends</dt>
+        <dd className="text-right font-medium">
+          {formatDate(v.schedule[v.schedule.length - 1]?.dueDate ?? p.startDate)}
+        </dd>
+        <dt className="text-muted-foreground">Debit from</dt>
+        <dd className="text-right text-xs leading-snug font-medium break-words">{accountText}</dd>
+      </dl>
+      <div className="mt-auto flex gap-2 pt-3">
+        <Button variant="outline" size="sm" className="h-8 flex-1 text-xs" onClick={onView}>
+          View Details
+        </Button>
+        {next ? (
+          <Button
+            size="sm"
+            className="h-8 flex-1 bg-navy text-xs text-navy-foreground hover:bg-navy/90"
+            onClick={() => onMarkPaid(next)}
+          >
+            Mark as Paid
+          </Button>
+        ) : null}
+      </div>
+    </SectionCard>
   );
 }
 
 interface EmiForm {
   id: string | null;
   name: string;
+  lender: string;
+  loanType: string;
   amount: string;
   dueDay: string;
   paidFromType: SourceType;
   paidFromId: string;
   startDate: string;
-  endMode: "date" | "count";
-  endDate: string;
   installments: string;
+  interestRate: string;
+  reference: string;
   notes: string;
   closed: boolean;
 }
@@ -1559,25 +1551,27 @@ interface EmiForm {
 const emptyEmiForm = (): EmiForm => ({
   id: null,
   name: "",
+  lender: "",
+  loanType: "",
   amount: "",
   dueDay: "5",
   paidFromType: "bank",
   paidFromId: "",
   startDate: todayISO(),
-  endMode: "count",
-  endDate: "",
   installments: "12",
+  interestRate: "",
+  reference: "",
   notes: "",
   closed: false,
 });
 
 function EmiTab() {
   const store = useLepdo();
-  const shell = useShell();
-  const { from, to } = shell;
+  const today = todayISO();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<EmiPlan | null>(null);
   const [voidingPlan, setVoidingPlan] = useState<EmiPlan | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState<EmiPlan | null>(null);
   const [payTarget, setPayTarget] = useState<{
     plan: EmiPlan;
     month: string;
@@ -1596,25 +1590,27 @@ function EmiTab() {
     [plans, store.emiPayments],
   );
 
-  const monthlyOutgo = useMemo(
-    () => plans.filter((p) => !p.closed).reduce((s, p) => s + p.amount, 0),
-    [plans],
-  );
+  const counts = useMemo(() => {
+    const c: Record<EmiStatus, number> = { Upcoming: 0, "Due Today": 0, Overdue: 0, Completed: 0 };
+    for (const v of views) c[emiStatusOf(v, today).status] += 1;
+    c.Completed += closedViews.length;
+    return c;
+  }, [views, closedViews, today]);
 
-  const paidThisPeriod = useMemo(() => {
-    let total = 0;
-    for (const v of views) {
-      for (const r of v.schedule) {
-        if (r.paid && r.payment && r.payment.date >= from && r.payment.date <= to) {
-          total += r.payment.amount;
-        }
-      }
-    }
-    return total;
-  }, [views, from, to]);
-
-  const overdueCount = useMemo(() => views.reduce((s, v) => s + v.overdueCount, 0), [views]);
-  const remainingCount = useMemo(() => views.reduce((s, v) => s + v.remainingCount, 0), [views]);
+  /** Date-wise order: Overdue → Due Today → Upcoming (earliest first) → Completed; ties by name. */
+  const emiCards = useMemo(() => {
+    const rank: Record<EmiStatus, number> = { Overdue: 0, "Due Today": 1, Upcoming: 2, Completed: 3 };
+    const items = views
+      .map((v) => ({ v, ...emiStatusOf(v, today) }))
+      .sort((a, b) => {
+        if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
+        const da = a.next?.dueDate ?? "";
+        const db = b.next?.dueDate ?? "";
+        if (da !== db) return da.localeCompare(db);
+        return a.v.plan.name.localeCompare(b.v.plan.name, undefined, { sensitivity: "base" });
+      });
+    return items.map((it) => it.v);
+  }, [views, today]);
 
   const accountLabel = (type?: SourceType, id?: string) => {
     if (!type || !id) return "—";
@@ -1646,38 +1642,29 @@ function EmiTab() {
     setPayTarget(null);
   };
 
+  const deletePlan = () => {
+    if (!deletingPlan) return;
+    for (const pay of store.emiPayments.filter((x) => x.planId === deletingPlan.id)) {
+      store.removeRecord("emiPayments", pay.id);
+    }
+    store.removeRecord("emiPlans", deletingPlan.id);
+    toast.success("EMI reminder deleted.");
+    setDeletingPlan(null);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Monthly EMI Outgo"
-          value={formatMoney(monthlyOutgo)}
-          hint="Sum of active EMI plans"
-          tone="navy"
-          icon={<Wallet className="size-4" />}
-        />
-        <StatCard
-          label="Paid This Period"
-          value={formatMoney(paidThisPeriod)}
-          hint={`${formatDate(from)} – ${formatDate(to)}`}
-          tone="green"
-          icon={<CheckCircle2 className="size-4" />}
-        />
-        <StatCard
-          label="Overdue Instalments"
-          value={String(overdueCount)}
-          tone={overdueCount > 0 ? "red" : "grey"}
-          icon={<AlertTriangle className="size-4" />}
-        />
-        <StatCard
-          label="Remaining Instalments"
-          value={String(remainingCount)}
-          tone="blue"
-          icon={<CalendarClock className="size-4" />}
-        />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard label="Upcoming" value={String(counts.Upcoming)} tone="blue" icon={<CalendarClock className="size-4" />} />
+        <StatCard label="Due Today" value={String(counts["Due Today"])} tone="orange" icon={<Wallet className="size-4" />} />
+        <StatCard label="Overdue" value={String(counts.Overdue)} tone={counts.Overdue > 0 ? "red" : "grey"} icon={<AlertTriangle className="size-4" />} />
+        <StatCard label="Completed" value={String(counts.Completed)} tone="green" icon={<CheckCircle2 className="size-4" />} />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Reminders only — EMI plans never create or change any Bank, Cash, Expense or other entry.
+        </p>
         <Button
           className="h-9 bg-navy text-navy-foreground hover:bg-navy/90"
           onClick={() => {
@@ -1690,56 +1677,38 @@ function EmiTab() {
       </div>
 
       {views.length === 0 && closedViews.length === 0 ? (
-        <EmptyState
-          title="No EMI plans yet"
-          hint="Add an EMI plan to generate its month-wise payment schedule."
-        />
+        <EmptyState title="No EMI plans yet" hint="Add an EMI plan to get monthly payment reminders." />
       ) : (
-        views.map((v) => (
-          <SectionCard
-            key={v.plan.id}
-            title={v.plan.name}
-            actions={
-              <div className="flex items-center gap-2">
-                <Chip tone="grey">
-                  Debit: {accountLabel(v.plan.paidFromType, v.plan.paidFromId)}
-                </Chip>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="size-8" aria-label="EMI actions">
-                      <MoreVertical className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setDetailId(v.plan.id)}>
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setEditing(v.plan);
-                        setFormOpen(true);
-                      }}
-                    >
-                      Edit EMI
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setVoidingPlan(v.plan)}>
-                      Close EMI
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            }
-          >
-            <EmiPlanSummary v={v} onView={() => setDetailId(v.plan.id)} />
-          </SectionCard>
-        ))
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(max(300px, calc((100% - 32px) / 3)), 100%), 1fr))",
+          }}
+        >
+          {emiCards.map((v) => (
+            <EmiCard
+              key={v.plan.id}
+              v={v}
+              accountText={accountLabel(v.plan.paidFromType, v.plan.paidFromId)}
+              onView={() => setDetailId(v.plan.id)}
+              onEdit={() => {
+                setEditing(v.plan);
+                setFormOpen(true);
+              }}
+              onClose={() => setVoidingPlan(v.plan)}
+              onDelete={() => setDeletingPlan(v.plan)}
+              onMarkPaid={(r) => setPayTarget({ plan: v.plan, month: r.month, dueDate: r.dueDate })}
+            />
+          ))}
+        </div>
       )}
 
       {closedViews.length > 0 ? (
         <SectionCard title="Closed EMI Plans">
           <ul className="divide-y divide-border text-sm">
             {closedViews.map((v) => (
-              <li key={v.plan.id} className="flex items-center justify-between gap-2 py-2">
+              <li key={v.plan.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
                   <p className="font-medium text-foreground">{v.plan.name}</p>
                   <p className="text-xs text-muted-foreground">
@@ -1760,6 +1729,14 @@ function EmiTab() {
                   >
                     Reopen
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => setDeletingPlan(v.plan)}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </li>
             ))}
@@ -1769,23 +1746,35 @@ function EmiTab() {
 
       {(() => {
         const dv = [...views, ...closedViews].find((x) => x.plan.id === detailId);
+        const p = dv?.plan;
         return (
           <Dialog open={!!dv} onOpenChange={(o) => !o && setDetailId(null)}>
             <DialogContent className="flex max-h-[92dvh] max-w-3xl flex-col gap-0 p-0">
               <DialogHeader className="border-b border-border px-5 py-4 text-left">
-                <DialogTitle className="text-navy">{dv?.plan.name ?? "EMI"}</DialogTitle>
+                <DialogTitle className="text-navy">{p?.name ?? "EMI"}</DialogTitle>
                 <DialogDescription>
-                  {dv
-                    ? `${formatMoney(dv.plan.amount)}/month · Due day ${dv.plan.dueDay} · Starts ${formatDate(dv.plan.startDate)} · Debit: ${accountLabel(dv.plan.paidFromType, dv.plan.paidFromId)} · Paid ${dv.paidCount}/${dv.schedule.length} · Overdue ${dv.overdueCount}`
+                  {dv && p
+                    ? [
+                        p.lender,
+                        p.loanType,
+                        `${formatMoney(p.amount)}/month`,
+                        `Debit day ${p.dueDay}`,
+                        `Debit from ${accountLabel(p.paidFromType, p.paidFromId)}`,
+                        p.interestRate != null ? `Interest ${p.interestRate}%` : "",
+                        p.reference ? `Ref ${p.reference}` : "",
+                        `Paid ${dv.paidCount}/${dv.schedule.length}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
                     : ""}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-auto px-5 py-4">
                 {dv ? (
-                  <table className="w-full min-w-[600px] text-sm">
+                  <table className="w-full min-w-[560px] text-sm">
                     <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="px-3 py-2 text-left font-semibold">Month</th>
+                        <th className="px-3 py-2 text-left font-semibold">#</th>
                         <th className="px-3 py-2 text-left font-semibold">Due Date</th>
                         <th className="px-3 py-2 text-right font-semibold">Amount</th>
                         <th className="px-3 py-2 text-left font-semibold">Status</th>
@@ -1794,60 +1783,51 @@ function EmiTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dv.schedule.map((r) => (
-                        <tr key={r.month} className="border-t border-border">
-                          <td className="px-3 py-2">{r.month}</td>
-                          <td className="whitespace-nowrap px-3 py-2">{formatDate(r.dueDate)}</td>
-                          <td className="num whitespace-nowrap px-3 py-2 text-right">
-                            {formatMoney(r.amount)}
-                          </td>
-                          <td className="px-3 py-2">
-                            <Chip
-                              tone={
-                                r.status === "Paid"
-                                  ? "green"
-                                  : r.status === "Overdue"
-                                    ? "red"
-                                    : "grey"
-                              }
-                            >
-                              {r.status}
-                            </Chip>
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
-                            {r.paid && r.payment
-                              ? `${formatDate(r.payment.date)} · ${formatMoney(r.payment.amount)}`
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            {r.paid ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs text-destructive"
-                                onClick={() => r.payment && setUndoTarget(r.payment)}
-                              >
-                                Undo
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() =>
-                                  setPayTarget({
-                                    plan: dv.plan,
-                                    month: r.month,
-                                    dueDate: r.dueDate,
-                                  })
-                                }
-                              >
-                                Mark Paid
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {dv.schedule.map((r, i) => {
+                        const st = rowStatus(r, today);
+                        return (
+                          <tr key={r.month} className="border-t border-border">
+                            <td className="px-3 py-2">{i + 1}</td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <span className={cn("rounded px-1.5 py-0.5", EMI_DATE_CLASS[st])}>
+                                {formatDate(r.dueDate)}
+                              </span>
+                            </td>
+                            <td className="num whitespace-nowrap px-3 py-2 text-right">
+                              {formatMoney(r.amount)}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Chip tone={EMI_STATUS_TONE[st]}>{r.paid ? "Paid" : st}</Chip>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
+                              {r.paid && r.payment ? formatDate(r.payment.date) : "—"}
+                            </td>
+                            <td className="px-2 py-2 text-right">
+                              {r.paid ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-destructive"
+                                  onClick={() => r.payment && setUndoTarget(r.payment)}
+                                >
+                                  Undo
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() =>
+                                    setPayTarget({ plan: dv.plan, month: r.month, dueDate: r.dueDate })
+                                  }
+                                >
+                                  Mark as Paid
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : null}
@@ -1864,9 +1844,7 @@ function EmiTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Close this EMI plan?</AlertDialogTitle>
             <AlertDialogDescription>
-              {voidingPlan
-                ? `${voidingPlan.name} will move to Closed EMI Plans. It stays visible for audit and can be reopened.`
-                : ""}
+              {voidingPlan ? `${voidingPlan.name} will move to Closed EMI Plans and can be reopened.` : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1882,6 +1860,23 @@ function EmiTab() {
             >
               Close EMI
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingPlan} onOpenChange={(o) => !o && setDeletingPlan(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this EMI reminder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingPlan
+                ? `${deletingPlan.name} and its paid marks will be removed. No accounting entry is affected.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePlan}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1979,6 +1974,7 @@ function MarkPaidModal({
   );
 }
 
+
 function EmiFormModal({
   open,
   editing,
@@ -1993,18 +1989,22 @@ function EmiFormModal({
   const [saving, setSaving] = useState(false);
 
   if (open && form.id !== (editing?.id ?? null) && !saving) {
-    const next = editing
+    const next: EmiForm = editing
       ? {
           id: editing.id,
           name: editing.name,
+          lender: editing.lender ?? "",
+          loanType: editing.loanType ?? "",
           amount: String(editing.amount),
           dueDay: String(editing.dueDay),
           paidFromType: editing.paidFromType ?? "bank",
           paidFromId: editing.paidFromId ?? "",
           startDate: editing.startDate,
-          endMode: (editing.installments ? "count" : "date") as "date" | "count",
-          endDate: editing.endDate ?? "",
-          installments: editing.installments != null ? String(editing.installments) : "",
+          installments: String(
+            editing.installments ?? buildEmiSchedule(editing, []).schedule.length,
+          ),
+          interestRate: editing.interestRate != null ? String(editing.interestRate) : "",
+          reference: editing.reference ?? "",
           notes: editing.notes ?? "",
           closed: !!editing.closed,
         }
@@ -2019,9 +2019,34 @@ function EmiFormModal({
       ? store.bankAccounts.filter((b) => b.active)
       : store.cashLocations.filter((c) => c.active);
 
+  const preview = useMemo(() => {
+    const count = Number(form.installments) || 0;
+    const dueDay = Number(form.dueDay) || 0;
+    if (count < 1 || dueDay < 1 || dueDay > 31 || !form.startDate) return null;
+    const v = buildEmiSchedule(
+      {
+        id: form.id ?? "__preview__",
+        name: "",
+        amount: Number(form.amount) || 0,
+        dueDay,
+        startDate: form.startDate,
+        installments: count,
+        createdAt: "",
+        createdBy: "",
+        updatedAt: "",
+        updatedBy: "",
+      },
+      form.id ? store.emiPayments : [],
+    );
+    return {
+      endDate: v.schedule[v.schedule.length - 1]?.dueDate ?? "",
+      remaining: v.remainingCount,
+    };
+  }, [form.installments, form.dueDay, form.startDate, form.amount, form.id, store.emiPayments]);
+
   const submit = () => {
     if (!form.name.trim()) {
-      toast.error("Enter the EMI name/account.");
+      toast.error("Enter the EMI / loan name.");
       return;
     }
     const amount = Number(form.amount) || 0;
@@ -2031,18 +2056,14 @@ function EmiFormModal({
     }
     const dueDay = Number(form.dueDay) || 1;
     if (dueDay < 1 || dueDay > 31) {
-      toast.error("Due day must be between 1 and 31.");
+      toast.error("Monthly debit date must be between 1 and 31.");
       return;
     }
     if (!form.paidFromId) {
-      toast.error("Select the debit account.");
+      toast.error("Select the bank / cash account.");
       return;
     }
-    if (form.endMode === "date" && !form.endDate) {
-      toast.error("Select an end date.");
-      return;
-    }
-    if (form.endMode === "count" && (!Number(form.installments) || Number(form.installments) < 1)) {
+    if (!Number(form.installments) || Number(form.installments) < 1) {
       toast.error("Enter number of instalments.");
       return;
     }
@@ -2051,13 +2072,17 @@ function EmiFormModal({
       const rec = store.stamp("emiplan", {
         id: editing?.id,
         name: form.name.trim(),
+        lender: form.lender.trim() || undefined,
+        loanType: form.loanType || undefined,
         amount,
         dueDay,
         paidFromType: form.paidFromType,
         paidFromId: form.paidFromId,
         startDate: form.startDate,
-        endDate: form.endMode === "date" ? form.endDate : undefined,
-        installments: form.endMode === "count" ? Number(form.installments) : undefined,
+        endDate: undefined,
+        installments: Number(form.installments),
+        interestRate: form.interestRate ? Number(form.interestRate) : undefined,
+        reference: form.reference.trim() || undefined,
         notes: form.notes || undefined,
         closed: form.closed,
       });
@@ -2074,6 +2099,7 @@ function EmiFormModal({
       open={open}
       onClose={onClose}
       title={editing ? "Edit EMI Plan" : "Add EMI Plan"}
+      subtitle="Reminder only — no Bank, Cash or other accounting entry is created."
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -2090,26 +2116,42 @@ function EmiFormModal({
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
+        <TextField label="EMI / Loan Name" value={form.name} onChange={(v) => set("name", v)} />
         <TextField
-          label="EMI Name / Account"
-          value={form.name}
-          onChange={(v) => set("name", v)}
-          className="sm:col-span-2"
+          label="Lender / Finance Company"
+          value={form.lender}
+          onChange={(v) => set("lender", v)}
         />
-        <Field label="Amount">
+        <Field label="Loan Type">
+          <Select value={form.loanType} onValueChange={(v) => set("loanType", v)}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="Select loan type" />
+            </SelectTrigger>
+            <SelectContent>
+              {LOAN_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <TextField
+          label="Loan Start Date"
+          type="date"
+          value={form.startDate}
+          onChange={(v) => set("startDate", v)}
+        />
+        <Field label="EMI Amount">
           <MoneyInput value={toNum(form.amount)} onChange={(n) => set("amount", String(n))} />
         </Field>
-        <Field label="Monthly Due Day (1-31)">
-          <NumInput
-            decimals={0}
-            value={toNum(form.dueDay)}
-            onChange={(n) => set("dueDay", String(n))}
-          />
+        <Field label="Monthly Debit Date (1-31)">
+          <NumInput decimals={0} value={toNum(form.dueDay)} onChange={(n) => set("dueDay", String(n))} />
         </Field>
-        <Field label="Debit Account Type">
+        <Field label="Debit From">
           <Select
             value={form.paidFromType}
-            onValueChange={(v) => set("paidFromType", v as SourceType)}
+            onValueChange={(v) => setForm((f) => ({ ...f, paidFromType: v as SourceType, paidFromId: "" }))}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue />
@@ -2120,7 +2162,7 @@ function EmiFormModal({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Debit Account">
+        <Field label="Bank / Cash Account" hint="For reminder only — no balance is changed.">
           <Select value={form.paidFromId} onValueChange={(v) => set("paidFromId", v)}>
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Select account" />
@@ -2134,40 +2176,29 @@ function EmiFormModal({
             </SelectContent>
           </Select>
         </Field>
-        <TextField
-          label="Start Date"
-          type="date"
-          value={form.startDate}
-          onChange={(v) => set("startDate", v)}
-        />
-        <Field label="End By">
-          <Select value={form.endMode} onValueChange={(v) => set("endMode", v as "date" | "count")}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="count">Instalment Count</SelectItem>
-              <SelectItem value="date">End Date</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        {form.endMode === "count" ? (
-          <Field label="Number of Instalments">
-            <NumInput
-              decimals={0}
-              value={toNum(form.installments)}
-              onChange={(n) => set("installments", String(n))}
-            />
-          </Field>
-        ) : (
-          <TextField
-            label="End Date"
-            type="date"
-            value={form.endDate}
-            onChange={(v) => set("endDate", v)}
+        <Field label="Number of Instalments">
+          <NumInput
+            decimals={0}
+            value={toNum(form.installments)}
+            onChange={(n) => set("installments", String(n))}
           />
-        )}
-        <Field label="Notes" className="sm:col-span-2">
+        </Field>
+        <Field label="Interest Rate % (optional)">
+          <NumInput value={toNum(form.interestRate)} onChange={(n) => set("interestRate", n ? String(n) : "")} />
+        </Field>
+        <Field label="Loan End Date (auto)">
+          <Input className="h-9" readOnly value={preview?.endDate ? formatDate(preview.endDate) : "—"} />
+        </Field>
+        <Field label="Remaining Instalments (auto)">
+          <Input className="h-9" readOnly value={preview ? String(preview.remaining) : "—"} />
+        </Field>
+        <TextField
+          label="Loan Account / Reference No. (optional)"
+          className="sm:col-span-2"
+          value={form.reference}
+          onChange={(v) => set("reference", v)}
+        />
+        <Field label="Notes (optional)" className="sm:col-span-2">
           <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
         </Field>
       </div>
