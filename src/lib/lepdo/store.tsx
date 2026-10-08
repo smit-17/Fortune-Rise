@@ -88,6 +88,11 @@ export interface SalesInvoiceInput extends InvoiceExtraInput {
   invoiceKind?: Invoice["invoiceKind"];
   jewelryItems?: Invoice["jewelryItems"];
   foreignTotal?: number | undefined;
+  foreignSubtotal?: number | undefined;
+  foreignDiscount?: number | undefined;
+  foreignShipping?: number | undefined;
+  foreignTaxableAmount?: number | undefined;
+  foreignTaxAmount?: number | undefined;
   saleType?: Invoice["saleType"];
   currency?: string | undefined;
   exchangeRate?: number | undefined;
@@ -1022,6 +1027,12 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           sgstAmount: input.sgstAmount,
           igstAmount: input.igstAmount,
           sellerIncentivePercent: input.sellerIncentivePercent,
+          foreignSubtotal: input.foreignSubtotal,
+          foreignDiscount: input.foreignDiscount,
+          foreignShipping: input.foreignShipping,
+          foreignTaxableAmount: input.foreignTaxableAmount,
+          foreignTaxAmount: input.foreignTaxAmount,
+
 
           notes: input.notes,
           createdAt: existing?.createdAt ?? now,
@@ -1036,7 +1047,13 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
             log(
               existing ? "update" : "create",
               "sales_invoice",
-              `${number} — ₹${round2(input.total)}`,
+              `${number} — ₹${round2(input.total)}${
+                round2(input.roundOff) !== round2(existing?.roundOff ?? 0)
+                  ? ` · Round-off ₹${round2(existing?.roundOff ?? 0)} → ₹${round2(input.roundOff)}`
+                  : round2(input.roundOff)
+                    ? ` · Round-off ₹${round2(input.roundOff)}`
+                    : ""
+              }`,
             ),
             ...prev.auditLogs,
           ],

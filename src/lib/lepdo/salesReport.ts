@@ -1,3 +1,4 @@
+import { formatCurrency, invoiceAmounts } from "./currency";
 import { formatDate, formatDateTime, formatMoney } from "./format";
 import { STATUS_LABEL, type CustomerView, type InvoiceView, type LedgerRow } from "./sales";
 import type { Invoice } from "./types";
@@ -204,14 +205,17 @@ export function invoiceCopyHtml(
     invoice.invoiceKind === "jewelry"
       ? jewelryTable(invoice.jewelryItems ?? [])
       : diamondTable(invoice.lines ?? []);
-  const cur = invoice.currency ?? "INR";
+  const amt = invoiceAmounts(invoice);
+  const cur = amt.currency;
   const totals = `<table border="1" cellspacing="0" cellpadding="6">
     <tbody>
-      <tr><th align="right">Subtotal</th><td align="right">${num(invoice.subtotal ?? invoice.total)}</td></tr>
-      <tr><th align="right">Discount</th><td align="right">${num(invoice.discount ?? 0)}</td></tr>
-      <tr><th align="right">Shipping / Other</th><td align="right">${num(invoice.shipping ?? 0)}</td></tr>
-      <tr><th align="right">Grand Total${cur !== "INR" ? ` (${esc(cur)})` : ""}</th><td align="right">${cur !== "INR" ? `${esc(cur)} ${num(invoice.foreignTotal ?? invoice.total)}` : num(invoice.total)}</td></tr>
-      ${cur !== "INR" ? `<tr><th align="right">Exchange rate</th><td align="right">${invoice.exchangeRate ?? 1}</td></tr><tr><th align="right">INR Total</th><td align="right">${num(invoice.total)}</td></tr>` : ""}
+      <tr><th align="right">Subtotal</th><td align="right">${esc(formatCurrency(amt.subtotal, cur))}</td></tr>
+      <tr><th align="right">Discount</th><td align="right">${esc(formatCurrency(amt.discount, cur))}</td></tr>
+      <tr><th align="right">Shipping / Other</th><td align="right">${esc(formatCurrency(amt.shipping, cur))}</td></tr>
+      <tr><th align="right">Grand Total (${esc(cur)})</th><td align="right">${esc(formatCurrency(amt.grandTotal, cur))}</td></tr>
+      ${cur !== "INR" ? `<tr><th align="right">Exchange rate</th><td align="right">${invoice.exchangeRate ?? 1}</td></tr><tr><th align="right">Converted INR Total</th><td align="right">${esc(formatCurrency(amt.convertedInr, "INR"))}</td></tr>` : ""}
+      <tr><th align="right">Round-Off Adjustment</th><td align="right">${esc(formatCurrency(amt.roundOff, "INR"))}</td></tr>
+      <tr><th align="right">Final Payable (INR)</th><td align="right"><b>${esc(formatCurrency(amt.inrTotal, "INR"))}</b></td></tr>
     </tbody></table>`;
   const head = `<p>Invoice: <strong>${esc(invoice.number)}</strong><br />Customer: ${esc(customerName)}<br />Date: ${esc(formatDate(invoice.date))}${invoice.dueDate ? ` · Due: ${esc(formatDate(invoice.dueDate))}` : ""}${invoice.sellerName ? `<br />Seller: ${esc(invoice.sellerName)}` : ""}${invoice.platform ? `<br />Platform: ${esc(invoice.platform)}` : ""}</p>`;
   return {

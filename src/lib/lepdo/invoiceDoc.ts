@@ -1,3 +1,4 @@
+import { currencySymbol, invoiceAmounts } from "./currency";
 import logoAsset from "@/assets/lepdo-logo.png.asset.json";
 import { formatDate, round2 } from "./format";
 import type { AppSettings, Invoice, Party } from "./types";
@@ -130,7 +131,7 @@ export function invoiceRows(invoice: Invoice): InvoiceRow[] {
         pcs: 1,
         carat: 0,
         rate: 0,
-        total: round2(invoice.subtotal ?? invoice.foreignTotal ?? invoice.total),
+        total: invoiceAmounts(invoice).subtotal,
       },
     ];
   }
@@ -157,6 +158,10 @@ export interface InvoiceTotals {
   taxableAmount: number;
   taxAmount: number;
   grandTotal: number;
+  /** INR before round-off, manual round-off, final INR payable */
+  convertedInr: number;
+  roundOff: number;
+  finalPayable: number;
   received: number;
   pending: number;
 }
@@ -164,13 +169,17 @@ export interface InvoiceTotals {
 export function invoiceTotals(invoice: Invoice, received?: number): InvoiceTotals {
   const rows = invoiceRows(invoice);
   const rowsTotal = round2(rows.reduce((s, r) => s + r.total, 0));
-  const subtotal = round2(invoice.subtotal ?? rowsTotal);
-  const discount = round2(invoice.discount ?? 0);
-  const shipping = round2(invoice.shipping ?? 0);
-  const taxableAmount = round2(invoice.taxableAmount ?? subtotal - discount + shipping);
-  const taxAmount = round2(invoice.taxAmount ?? 0);
-  const grandTotal = round2(invoice.foreignTotal ?? invoice.total);
-  const rec = round2(received ?? invoice.paid ?? 0);
+  // every figure in the invoice's own currency (received is stored in INR)
+  const a = invoiceAmounts(invoice);
+  const subtotal = a.subtotal;
+  const discount = a.discount;
+  const shipping = a.shipping;
+  const taxableAmount = a.taxableAmount;
+  const taxAmount = a.taxAmount;
+  const grandTotal = a.grandTotal;
+  const recInr = round2(received ?? invoice.paid ?? 0);
+  const rec = a.currency === "INR" ? recInr : round2(recInr / a.rate);
+  const pendingInr = round2(a.inrTotal - recInr);
   return {
     rows,
     pcs: round2(rows.reduce((s, r) => s + r.pcs, 0)),
@@ -182,8 +191,11 @@ export function invoiceTotals(invoice: Invoice, received?: number): InvoiceTotal
     taxableAmount,
     taxAmount,
     grandTotal,
+    convertedInr: a.convertedInr,
+    roundOff: a.roundOff,
+    finalPayable: a.inrTotal,
     received: rec,
-    pending: round2(grandTotal - rec),
+    pending: a.currency === "INR" ? pendingInr : round2(pendingInr / a.rate),
   };
 }
 
@@ -209,11 +221,13 @@ export function validateInvoice(invoice: Invoice, received?: number): string[] {
   if (cur !== "INR") {
     const rate = invoice.exchangeRate ?? 0;
     if (!rate) errs.push("Foreign-currency invoice has no exchange rate.");
-    else if (!near(round2((invoice.foreignTotal ?? 0) * rate), invoice.total))
+    else if (!near(round2((invoice.foreignTotal ?? 0) * rate), t.convertedInr))
       errs.push("Converted INR total does not match grand total × exchange rate.");
   }
   if (t.received < -0.05) errs.push("Received amount is negative.");
-  if (t.received - t.grandTotal > 0.05 && t.grandTotal > 0)
+  if (t.finalPayable < -0.005) errs.push("Final payable amount is negative.");
+  const recInr = round2(received ?? invoice.paid ?? 0);
+  if (recInr - t.finalPayable > 0.05 && t.finalPayable > 0)
     errs.push("Received amount is greater than the invoice grand total.");
   return errs;
 }
@@ -245,7 +259,7 @@ export function buildInvoiceDocHtml({
 }: InvoiceDocInput): string {
   const t = invoiceTotals(invoice, received);
   const cur = invoice.currency ?? "INR";
-  const sym = cur === "INR" ? "₹" : `${cur} `;
+  const sym = currencySymbol(cur);
   const amt = (n: number) => `${sym}${money(n)}`;
   const b = settings.business;
   const thanks =
@@ -450,13 +464,15 @@ export function buildInvoiceDocHtml({
           ${t.shipping ? sumRow("Shipping Charges", amt(t.shipping)) : ""}
           ${t.taxAmount ? sumRow(`GST ${invoice.gstRate ?? 0}%`, amt(t.taxAmount)) : ""}
           <div class="grand"><span class="lbl">Total Amount</span><span class="val n">${amt(t.grandTotal)}</span></div>
-          ${cur !== "INR" ? `<div class="eqv">INR Equivalent ₹${money(invoice.total)}</div>` : ""}
+          ${cur !== "INR" ? `<div class="eqv">Converted INR Total ₹${money(t.convertedInr)}</div>` : ""}
+          ${t.roundOff ? sumRow("Round-Off Adjustment", `${t.roundOff < 0 ? "- " : "+ "}₹${money(Math.abs(t.roundOff))}`) : ""}
+          ${t.roundOff ? `<div class="grand"><span class="lbl">Final Payable</span><span class="val n">₹${money(t.finalPayable)}</span></div>` : ""}
         </div>
       </div>
 
       <div class="words">
         <div class="cap2">Amount Chargeable (in words)</div>
-        <b>${esc(amountInWords(t.grandTotal, cur))}</b>
+        <b>${esc(t.roundOff ? amountInWords(t.finalPayable, "INR") : amountInWords(t.grandTotal, cur))}</b>
       </div>
 
       ${

@@ -1,3 +1,4 @@
+import { formatCurrency, invoiceAmounts } from "@/lib/lepdo/currency";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -825,7 +826,14 @@ function InvoiceTable({
                 <td className="px-3 py-2">{v.customer?.name ?? "—"}</td>
                 <td className="px-3 py-2">{v.invoice.sellerName || "—"}</td>
                 <td className="px-3 py-2">{v.invoice.platform || "—"}</td>
-                <td className="num px-3 py-2 text-right">{formatMoney(v.invoice.total)}</td>
+                <td className="num px-3 py-2 text-right">
+                  {formatMoney(v.invoice.total)}
+                  {v.invoice.currency && v.invoice.currency !== "INR" ? (
+                    <span className="block text-[11px] text-muted-foreground">
+                      {formatCurrency(invoiceAmounts(v.invoice).grandTotal, v.invoice.currency)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="num px-3 py-2 text-right text-sl-paid">{formatMoney(v.received)}</td>
                 <td className="num px-3 py-2 text-right text-sl-pending">
                   {formatMoney(v.pending)}
@@ -1090,6 +1098,11 @@ function InvoiceDialog({
 
   const inv = view?.invoice;
   const isJewelry = inv?.invoiceKind === "jewelry";
+  const amounts = inv ? invoiceAmounts(inv) : undefined;
+  const itemMoney = (value: number) => formatCurrency(value, amounts?.currency);
+  // Allocated receipts remain stored in INR; convert only their tab display.
+  const paymentMoney = (value: number) =>
+    formatCurrency(value / (amounts?.rate ?? 1), amounts?.currency);
   return (
     <Dialog open={!!view} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className={MODAL_CLASS}>
@@ -1133,22 +1146,22 @@ function InvoiceDialog({
                           </span>
                           <span>Net wt: {it.netWeight} g</span>
                           <span>Fine 999: {it.fineGram} g</span>
-                          <span>Metal: {formatMoney(it.metalValue)}</span>
-                          <span>Making: {formatMoney(it.makingValue)}</span>
-                          <span>Stones: {formatMoney(it.stoneValue)}</span>
+                          <span>Metal: {itemMoney(it.metalValue)}</span>
+                          <span>Making: {itemMoney(it.makingValue)}</span>
+                          <span>Stones: {itemMoney(it.stoneValue)}</span>
                         </div>
                         {it.stones.length ? (
                           <ul className="num mt-2 space-y-1 text-[11px] text-muted-foreground">
                             {it.stones.map((s) => (
                               <li key={s.id} className="truncate">
-                                {s.stoneType} {s.size} · {s.carat} ct × {formatMoney(s.rate)} ={" "}
-                                {formatMoney(s.value)}
+                                {s.stoneType} {s.size} · {s.carat} ct × {itemMoney(s.rate)} ={" "}
+                                {itemMoney(s.value)}
                               </li>
                             ))}
                           </ul>
                         ) : null}
                         <p className="num mt-2 text-sm font-semibold text-navy">
-                          Item total {formatMoney(it.total)}
+                          Item total {itemMoney(it.total)}
                         </p>
                       </div>
                     ))}
@@ -1177,9 +1190,9 @@ function InvoiceDialog({
                               <td className="px-3 py-2">{i + 1}</td>
                               <td className="truncate px-3 py-2">{l.description}</td>
                               <td className="num px-3 py-2 text-right">{l.carat || "—"}</td>
-                              <td className="num px-3 py-2 text-right">{formatMoney(l.rate)}</td>
+                              <td className="num px-3 py-2 text-right">{itemMoney(l.rate)}</td>
                               <td className="num px-3 py-2 text-right">
-                                {formatMoney(round2((l.carat || l.quantity) * l.rate))}
+                                {itemMoney(round2((l.carat || l.quantity) * l.rate))}
                               </td>
                             </tr>
                           ))}
@@ -1202,9 +1215,9 @@ function InvoiceDialog({
                           <p className="font-medium text-navy">{l.description}</p>
                           <div className="num mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
                             <span>Carat: {l.carat || "—"}</span>
-                            <span>Price/CT: {formatMoney(l.rate)}</span>
+                            <span>Price/CT: {itemMoney(l.rate)}</span>
                             <span className="font-semibold text-navy">
-                              Total: {formatMoney(round2((l.carat || l.quantity) * l.rate))}
+                              Total: {itemMoney(round2((l.carat || l.quantity) * l.rate))}
                             </span>
                           </div>
                         </div>
@@ -1241,7 +1254,7 @@ function InvoiceDialog({
                           <td className="truncate px-3 py-2">{p.payment.reference}</td>
                           <td className="px-3 py-2"></td>
                           <td className="num px-3 py-2 text-right text-sl-paid">
-                            {formatMoney(p.amount)}
+                            {paymentMoney(p.amount)}
                           </td>
                         </tr>
                       ))}
@@ -1260,7 +1273,7 @@ function InvoiceDialog({
                     <div key={p.payment.id} className="rounded-xl border border-border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-medium text-navy">{formatDate(p.payment.date)}</p>
-                        <p className="num font-semibold text-sl-paid">{formatMoney(p.amount)}</p>
+                        <p className="num font-semibold text-sl-paid">{paymentMoney(p.amount)}</p>
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {p.payment.account} · {p.payment.reference}
@@ -1277,20 +1290,32 @@ function InvoiceDialog({
 
               <TabsContent value="summary" className="mt-3">
                 <div className="num space-y-2 rounded-xl border border-border p-4">
-                  <Row label="Subtotal" value={formatMoney(inv.subtotal ?? inv.total)} />
-                  <Row label="Discount" value={formatMoney(inv.discount ?? 0)} />
-                  <Row label="Shipping / Other" value={formatMoney(inv.shipping ?? 0)} />
-                  {inv.currency && inv.currency !== "INR" ? (
-                    <>
-                      <Row
-                        label={`Grand Total (${inv.currency})`}
-                        value={`${inv.currency} ${(inv.foreignTotal ?? 0).toFixed(2)}`}
-                      />
-                      <Row label="Exchange rate" value={String(inv.exchangeRate ?? 1)} />
-                    </>
-                  ) : null}
+                  {(() => {
+                    const a = invoiceAmounts(inv);
+                    const foreign = a.currency !== "INR";
+                    return (
+                      <>
+                        <Row label="Subtotal" value={formatCurrency(a.subtotal, a.currency)} />
+                        <Row label="Discount" value={formatCurrency(a.discount, a.currency)} />
+                        <Row label="Shipping / Other" value={formatCurrency(a.shipping, a.currency)} />
+                        {foreign ? (
+                          <>
+                            <Row
+                              label={`Grand Total (${a.currency})`}
+                              value={formatCurrency(a.grandTotal, a.currency)}
+                            />
+                            <Row label="Exchange rate" value={`1 ${a.currency} = ₹${a.rate}`} />
+                            <Row label="Converted INR Total" value={formatMoney(a.convertedInr)} />
+                          </>
+                        ) : (
+                          <Row label="Grand Total" value={formatMoney(a.convertedInr)} />
+                        )}
+                        <Row label="Round-Off Adjustment" value={formatMoney(a.roundOff)} />
+                      </>
+                    );
+                  })()}
                   <div className="mt-2 flex items-center justify-between rounded-lg bg-sl-total-bg px-3 py-2.5 font-semibold text-sl-total">
-                    <span>Final Total (INR)</span>
+                    <span>Final Payable (INR)</span>
                     <span className="text-base">{formatMoney(inv.total)}</span>
                   </div>
                 </div>

@@ -20,6 +20,13 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatMoney, round2, todayISO, uid } from "@/lib/lepdo/format";
+import {
+  convertAmount,
+  currencySymbol,
+  finalPayable,
+  formatCurrency,
+  invoiceAmounts,
+} from "@/lib/lepdo/currency";
 import { useLepdo, type SalesInvoiceInput } from "@/lib/lepdo/store";
 import { PLATFORMS } from "@/lib/lepdo/sales";
 import { masterOptions } from "@/lib/lepdo/masters";
@@ -245,6 +252,7 @@ export function SaleForm({
   const [manualSubtotalReason, setManualSubtotalReason] = useState("");
   const [manualDiscount, setManualDiscount] = useState<number | undefined>(undefined);
   const [manualDiscountReason, setManualDiscountReason] = useState("");
+  const [roundOffAdj, setRoundOffAdj] = useState(0);
   const [manualShipping, setManualShipping] = useState<number | undefined>(undefined);
   const [manualShippingReason, setManualShippingReason] = useState("");
   const [manualGrandTotal, setManualGrandTotal] = useState<number | undefined>(undefined);
@@ -269,6 +277,7 @@ export function SaleForm({
     setManualDiscountReason("");
     setManualShipping(undefined);
     setManualShippingReason("");
+    setRoundOffAdj(editing?.roundOff ?? 0);
     setManualGrandTotal(undefined);
     setManualGrandTotalReason("");
     setManualReceived(undefined);
@@ -288,10 +297,11 @@ export function SaleForm({
         exchangeRate: editing.exchangeRate ?? 1,
         saleType: editing.saleType ?? "ue",
         discountMode: editing.discountMode ?? "fixed",
-        discountValue: editing.discountValue ?? editing.discount ?? undefined,
+        discountValue: editing.discountValue ?? (invoiceAmounts(editing).discount || undefined),
         supplyLocation: editing.supplyLocation ?? "inside",
         taxSlab: editing.gstRate != null ? String(editing.gstRate) : "0",
-        shipping: editing.shipping || undefined,
+        // original-currency shipping (INR invoices: same value; foreign: never the INR figure)
+        shipping: invoiceAmounts(editing).shipping || undefined,
         notes: editing.notes ?? "",
       });
       setDiamondRows(
@@ -408,7 +418,8 @@ export function SaleForm({
   const rate = toNum(form.exchangeRate) || 0;
   const isForeign = form.currency !== "INR";
   const inrTotal = isForeign ? round2(grandTotal * rate) : grandTotal;
-  const payableTotal = inrTotal;
+  const roundOff = round2(roundOffAdj || 0);
+  const payableTotal = finalPayable(inrTotal, roundOff);
   const dueDays = Math.max(0, Math.floor(toNum(form.dueDays) || 0));
   const computedDueDate = useMemo(() => {
     if (!(dueDays > 0)) return undefined;
@@ -465,19 +476,19 @@ export function SaleForm({
     const parts: string[] = [];
     if (manualSubtotal !== undefined && manualSubtotalReason.trim())
       parts.push(
-        `Subtotal manually adjusted from ${formatMoney(autoSubtotal)} to ${formatMoney(manualSubtotal)} — ${manualSubtotalReason}`,
+        `Subtotal manually adjusted from ${formatCurrency(autoSubtotal, form.currency)} to ${formatCurrency(manualSubtotal, form.currency)} — ${manualSubtotalReason}`,
       );
     if (manualDiscount !== undefined && manualDiscountReason.trim())
       parts.push(
-        `Discount manually adjusted from ${formatMoney(autoDiscount)} to ${formatMoney(manualDiscount)} — ${manualDiscountReason}`,
+        `Discount manually adjusted from ${formatCurrency(autoDiscount, form.currency)} to ${formatCurrency(manualDiscount, form.currency)} — ${manualDiscountReason}`,
       );
     if (manualShipping !== undefined && manualShippingReason.trim())
       parts.push(
-        `Shipping manually adjusted from ${formatMoney(autoShipping)} to ${formatMoney(manualShipping)} — ${manualShippingReason}`,
+        `Shipping manually adjusted from ${formatCurrency(autoShipping, form.currency)} to ${formatCurrency(manualShipping, form.currency)} — ${manualShippingReason}`,
       );
     if (manualGrandTotal !== undefined && manualGrandTotalReason.trim())
       parts.push(
-        `Grand total manually adjusted from ${formatMoney(autoGrandTotal)} to ${formatMoney(manualGrandTotal)} — ${manualGrandTotalReason}`,
+        `Grand total manually adjusted from ${formatCurrency(autoGrandTotal, form.currency)} to ${formatCurrency(manualGrandTotal, form.currency)} — ${manualGrandTotalReason}`,
       );
     if (manualReceived !== undefined && manualReceivedReason.trim())
       parts.push(
@@ -552,8 +563,13 @@ export function SaleForm({
       taxableAmount: isForeign ? round2(taxableAmount * rate) : taxableAmount,
       taxAmount: isForeign ? round2(taxAmount * rate) : taxAmount,
       shipping: isForeign ? round2(shipping * rate) : shipping,
-      roundOff: 0,
-      total: inrTotal,
+      foreignSubtotal: isForeign ? subtotal : undefined,
+      foreignDiscount: isForeign ? discount : undefined,
+      foreignShipping: isForeign ? shipping : undefined,
+      foreignTaxableAmount: isForeign ? taxableAmount : undefined,
+      foreignTaxAmount: isForeign ? taxAmount : undefined,
+      roundOff,
+      total: payableTotal,
       notes: notesParts.join("\n\n") || undefined,
     } satisfies Record<string, unknown> as unknown as SalesInvoiceInput;
   }
@@ -578,6 +594,10 @@ export function SaleForm({
     if (saving) return;
     if (isForeign && !(rate > 0)) {
       toast.error("Enter the exchange rate for a non-INR invoice.");
+      return;
+    }
+    if (inrTotal + roundOff < -0.005) {
+      toast.error("Round-off adjustment cannot make the final payable amount negative.");
       return;
     }
     const missingReason = findMissingManualReason();
@@ -644,6 +664,92 @@ export function SaleForm({
 
     onClose();
   }
+
+  /** Switch invoice currency, converting every entered amount once (old rate → INR → new rate). */
+  function changeCurrency(raw: string) {
+    const code = raw.trim().toUpperCase();
+    if (!code || code === form.currency) return;
+    const hasAmounts =
+      diamondRows.some((r) => (Number(r.rate) || 0) > 0 || r.manualAmount !== undefined) ||
+      jewelry.some((j) => computeJewelry(j).total > 0) ||
+      (toNum(form.shipping) || 0) > 0 ||
+      (form.discountMode === "fixed" && (toNum(form.discountValue) || 0) > 0) ||
+      [manualSubtotal, manualDiscount, manualShipping, manualGrandTotal].some(
+        (m) => m !== undefined,
+      );
+    if (!hasAmounts) {
+      setForm({ ...form, currency: code, exchangeRate: code === "INR" ? 1 : undefined });
+      return;
+    }
+    const oldRate = form.currency === "INR" ? 1 : toNum(form.exchangeRate) || 0;
+    if (!(oldRate > 0)) {
+      toast.error(`Enter the ${form.currency} exchange rate first so amounts can be converted.`);
+      return;
+    }
+    let newRate = 1;
+    if (code !== "INR") {
+      const typed = window.prompt(`Exchange rate for ${code} (1 ${code} → ₹):`, "");
+      if (typed === null) return;
+      newRate = toNum(typed.replace(/[^\d.]/g, "")) || 0;
+      if (!(newRate > 0)) {
+        toast.error("Enter a valid exchange rate to convert the amounts.");
+        return;
+      }
+    }
+    const ok = window.confirm(
+      `Convert all entered amounts from ${form.currency} to ${code}?\n\n` +
+        `Each amount will be converted once (1 ${form.currency} = ₹${oldRate}` +
+        (code === "INR" ? "" : `, 1 ${code} = ₹${newRate}`) +
+        `). Example: ${formatCurrency(100, form.currency)} → ${formatCurrency(convertAmount(100, oldRate, newRate), code)}.`,
+    );
+    if (!ok) return;
+    const cv = (n: number | undefined) =>
+      n === undefined || n === null ? n : convertAmount(Number(n) || 0, oldRate, newRate);
+    const cvReq = (n: number) => convertAmount(Number(n) || 0, oldRate, newRate);
+    setDiamondRows((rows) =>
+      rows.map((r) => ({ ...r, rate: cvReq(r.rate), manualAmount: cv(r.manualAmount) })),
+    );
+    setJewelry((list) =>
+      list.map((j) => ({
+        ...j,
+        metalRatePerGram: cv(j.metalRatePerGram),
+        makingRatePerGram: cv(j.makingRatePerGram),
+        metalRate: cvReq(j.metalRate),
+        makingRate: cvReq(j.makingRate),
+        stones: j.stones.map((st) => ({
+          ...st,
+          rate: cvReq(st.rate),
+          totalAmount: cv(st.totalAmount),
+        })),
+      })),
+    );
+    setItemManuals((m) => {
+      const next: typeof m = {};
+      for (const [k, v] of Object.entries(m))
+        next[k] = {
+          ...v,
+          metal: cv(v.metal),
+          making: cv(v.making),
+          total: cv(v.total),
+        };
+      return next;
+    });
+    if (manualSubtotal !== undefined) setManualSubtotal(cvReq(manualSubtotal));
+    if (manualDiscount !== undefined) setManualDiscount(cvReq(manualDiscount));
+    if (manualShipping !== undefined) setManualShipping(cvReq(manualShipping));
+    if (manualGrandTotal !== undefined) setManualGrandTotal(cvReq(manualGrandTotal));
+    setForm({
+      ...form,
+      currency: code,
+      exchangeRate: newRate,
+      shipping: cv(form.shipping),
+      discountValue: form.discountMode === "fixed" ? cv(form.discountValue) : form.discountValue,
+    });
+    toast.success(`Amounts converted from ${form.currency} to ${code}.`);
+  }
+
+  const cur = form.currency;
+  const sym = currencySymbol(cur);
 
   const setJw = (id: string, patch: Partial<JewelryItem>) =>
     setJewelry((list) => list.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -806,14 +912,7 @@ export function SaleForm({
                     <MasterCombo
                       masterId="currencies"
                       value={form.currency}
-                      onChange={(v) => {
-                        const code = v.toUpperCase();
-                        setForm({
-                          ...form,
-                          currency: code,
-                          exchangeRate: code === "INR" ? 1 : undefined,
-                        });
-                      }}
+                      onChange={(v) => changeCurrency(v)}
                     />
                   </FormField>
 
@@ -995,7 +1094,7 @@ export function SaleForm({
                     </div>
                     <p className="num mt-3 text-xs text-muted-foreground">
                       Total carat {diamondTotals.carat} · Subtotal{" "}
-                      {formatMoney(diamondTotals.subtotal)}
+                      {formatCurrency(diamondTotals.subtotal, cur)}
                     </p>
                   </div>
                 ) : (
@@ -1051,7 +1150,7 @@ export function SaleForm({
                                   {it.netWeight} · 24K {it.fineWeight24k ?? 0}
                                 </div>
                                 <div className="num truncate text-sm font-semibold text-navy sm:col-span-2">
-                                  {formatMoney(it.total)}
+                                  {formatCurrency(it.total, cur)}
                                 </div>
                                 <div className="flex shrink-0 flex-wrap gap-1 sm:col-span-1">
                                   <Button
@@ -1095,7 +1194,7 @@ export function SaleForm({
                                     </span>
                                     <span className="num block truncate text-[11px] text-muted-foreground">
                                       {it.metal || it.karat} · {it.netWeight}g ·{" "}
-                                      {formatMoney(it.total)}
+                                      {formatCurrency(it.total, cur)}
                                     </span>
                                   </span>
                                 </button>
@@ -1493,10 +1592,10 @@ export function SaleForm({
                     <div className="num mt-3 grid grid-cols-2 gap-1 text-xs text-muted-foreground sm:grid-cols-3">
                       <span>Total metal weight: {jewelryTotals.weight} g</span>
                       <span>Total carat: {jewelryTotals.carat}</span>
-                      <span>Total metal: {formatMoney(jewelryTotals.metal)}</span>
-                      <span>Total making: {formatMoney(jewelryTotals.making)}</span>
-                      <span>Total stone: {formatMoney(jewelryTotals.stone)}</span>
-                      <span>Subtotal: {formatMoney(jewelryTotals.subtotal)}</span>
+                      <span>Total metal: {formatCurrency(jewelryTotals.metal, cur)}</span>
+                      <span>Total making: {formatCurrency(jewelryTotals.making, cur)}</span>
+                      <span>Total stone: {formatCurrency(jewelryTotals.stone, cur)}</span>
+                      <span>Subtotal: {formatCurrency(jewelryTotals.subtotal, cur)}</span>
                     </div>
                   </div>
                 )}
@@ -1520,7 +1619,7 @@ export function SaleForm({
                     label={
                       form.discountMode === "percent"
                         ? "Discount %"
-                        : `Discount (${form.currency})`
+                        : `Discount (${sym.trim()})`
                     }
                   >
                     <NumInput
@@ -1528,7 +1627,7 @@ export function SaleForm({
                       onChange={(n) => setForm({ ...form, discountValue: n })}
                     />
                   </FormField>
-                  <FormField label={`Shipping / other (${form.currency})`}>
+                  <FormField label={`Shipping / other (${sym.trim()})`}>
                     <MoneyInput
                       value={form.shipping}
                       onChange={(n) => setForm({ ...form, shipping: n })}
@@ -1575,7 +1674,7 @@ export function SaleForm({
 
                 <div className="space-y-2 rounded-xl border border-border bg-sl-total-bg p-3 text-sm text-sl-total">
                   <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
-                    <span>Subtotal</span>
+                    <span>Subtotal ({sym.trim()})</span>
                     <MoneyInput
                       className="h-9 sm:w-56"
                       value={manualSubtotal !== undefined ? manualSubtotal : autoSubtotal}
@@ -1583,7 +1682,7 @@ export function SaleForm({
                     />
                   </div>
                   <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
-                    <span>Discount</span>
+                    <span>Discount ({sym.trim()})</span>
                     <MoneyInput
                       className="h-9 sm:w-56"
                       value={manualDiscount !== undefined ? manualDiscount : autoDiscount}
@@ -1591,7 +1690,7 @@ export function SaleForm({
                     />
                   </div>
                   <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
-                    <span>Shipping / other</span>
+                    <span>Shipping / other ({sym.trim()})</span>
                     <MoneyInput
                       className="h-9 sm:w-56"
                       value={manualShipping !== undefined ? manualShipping : autoShipping}
@@ -1599,7 +1698,7 @@ export function SaleForm({
                     />
                   </div>
                   <div className="mt-1 grid grid-cols-1 items-center gap-2 border-t border-sl-total/20 pt-2 text-base font-semibold sm:grid-cols-[1fr_auto]">
-                    <span>Grand total{isForeign ? ` (${form.currency})` : ""}</span>
+                    <span>Grand total ({sym.trim()}{isForeign ? ` ${form.currency}` : ""})</span>
                     <MoneyInput
                       className="h-9 sm:w-56"
                       value={manualGrandTotal !== undefined ? manualGrandTotal : autoGrandTotal}
@@ -1608,9 +1707,31 @@ export function SaleForm({
                   </div>
                   {isForeign ? (
                     <div className="flex items-center justify-between pt-1 text-sm font-semibold">
-                      <span>Converted INR total</span>
+                      <span>Converted INR total (₹)</span>
                       <span>{formatMoney(inrTotal)}</span>
                     </div>
+                  ) : null}
+                  <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
+                    <span>
+                      Round-off adjustment (₹)
+                      <span className="block text-[11px] opacity-70">
+                        Use minus to reduce, e.g. -0.71
+                      </span>
+                    </span>
+                    <SignedMoneyInput
+                      className="h-9 sm:w-56"
+                      value={roundOffAdj}
+                      onChange={setRoundOffAdj}
+                    />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between rounded-lg bg-navy px-3 py-2.5 text-base font-bold text-navy-foreground">
+                    <span>Final payable amount (₹)</span>
+                    <span>{formatMoney(payableTotal)}</span>
+                  </div>
+                  {inrTotal + roundOff < -0.005 ? (
+                    <p className="text-xs text-destructive">
+                      Round-off cannot make the payable amount negative.
+                    </p>
                   ) : null}
                 </div>
 
@@ -1740,5 +1861,45 @@ export function SaleForm({
         onSaved={(id) => setForm((f) => ({ ...f, partyId: id }))}
       />
     </>
+  );
+}
+
+/** ₹ input accepting a leading minus and decimals (round-off adjustment). */
+function SignedMoneyInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  className?: string;
+}) {
+  const [text, setText] = useState(value ? String(value) : "");
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(value ? String(value) : "");
+  }, [value, focused]);
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder="0.00"
+      aria-label="Round-off adjustment"
+      className={cn("num", className)}
+      value={text}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        const raw = e.target.value.trim();
+        const neg = raw.startsWith("-");
+        let body = raw.replace(/[^\d.]/g, "");
+        const dot = body.indexOf(".");
+        if (dot !== -1) body = body.slice(0, dot + 1) + body.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+        const next = (neg ? "-" : "") + body;
+        setText(next);
+        const n = Number(body);
+        onChange(Number.isFinite(n) ? round2(neg ? -n : n) : 0);
+      }}
+    />
   );
 }

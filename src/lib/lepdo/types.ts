@@ -164,6 +164,12 @@ export interface Invoice {
   jewelryItems?: JewelryItem[] | undefined;
   /** grand total in the original invoice currency */
   foreignTotal?: number | undefined;
+  /** original-currency amounts (foreign invoices); INR fields hold the converted values */
+  foreignSubtotal?: number | undefined;
+  foreignDiscount?: number | undefined;
+  foreignShipping?: number | undefined;
+  foreignTaxableAmount?: number | undefined;
+  foreignTaxAmount?: number | undefined;
   saleType?: SaleType | undefined;
   currency?: string | undefined;
   exchangeRate?: number | undefined;
