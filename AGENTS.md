@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Keep dashboard presentation helpers local to its content route and consume existing store totals without changing accounting logic; visual changes must not affect other pages.
+- Other Bank Ledger data lives in separate LepdoData collections (otherBankAccounts/otherBankEntries) managed via saveRecord/removeRecord; never merge them into transactions or any accounting query — the section is reference-only by design.

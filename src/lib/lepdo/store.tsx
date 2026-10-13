@@ -167,7 +167,9 @@ export type ExtraKey =
   | "teamPayments"
   | "goals"
   | "emiPlans"
-  | "emiPayments";
+  | "emiPayments"
+  | "otherBankAccounts"
+  | "otherBankEntries";
 
 
 export interface AuditFields {
@@ -263,6 +265,8 @@ function hydrate(parsed: Partial<LepdoData> | null | undefined): LepdoData {
     goals: parsed.goals ?? [],
     emiPlans: parsed.emiPlans ?? [],
     emiPayments: parsed.emiPayments ?? [],
+    otherBankAccounts: parsed.otherBankAccounts ?? [],
+    otherBankEntries: parsed.otherBankEntries ?? [],
     masters: mergeMasters(parsed.masters),
 
     settings: {
@@ -987,7 +991,12 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (!(input.total > 0))
         return { ok: false, message: "Invoice total must be greater than zero." };
 
-
+      const invoiceClash = data.salesInvoices.some(
+        (i) =>
+          i.id !== input.id && !i.voided && i.number.trim().toLowerCase() === number.toLowerCase(),
+      );
+      if (invoiceClash)
+        return { ok: false, message: `Invoice number ${number} is already in use.` };
 
       const now = new Date().toISOString();
       const id = input.id ?? uid("si");
@@ -1053,6 +1062,10 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
                   : round2(input.roundOff)
                     ? ` · Round-off ₹${round2(input.roundOff)}`
                     : ""
+              }${
+                existing && existing.number !== number
+                  ? ` · Invoice number ${existing.number} → ${number}`
+                  : ""
               }`,
             ),
             ...prev.auditLogs,
@@ -1202,6 +1215,12 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (!hasRows) return { ok: false, message: "Add at least one item row." };
       if (!(input.total > 0))
         return { ok: false, message: "Bill total must be greater than zero." };
+      const billClash = data.purchaseBills.some(
+        (b) =>
+          b.id !== input.id && !b.voided && b.number.trim().toLowerCase() === number.toLowerCase(),
+      );
+      if (billClash)
+        return { ok: false, message: `Bill number ${number} is already in use.` };
 
 
 
@@ -1257,7 +1276,11 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
             log(
               existing ? "update" : "create",
               "purchase_bill",
-              `${number} — ₹${round2(input.total)}`,
+              `${number} — ₹${round2(input.total)}${
+                existing && existing.number !== number
+                  ? ` · Bill number ${existing.number} → ${number}`
+                  : ""
+              }`,
             ),
             ...prev.auditLogs,
           ],

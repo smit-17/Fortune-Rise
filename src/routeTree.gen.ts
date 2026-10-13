@@ -16,6 +16,7 @@ import { Route as CashBookRouteImport } from './routes/cash-book'
 import { Route as DrawingsRouteImport } from './routes/drawings'
 import { Route as ExpenseRouteImport } from './routes/expense'
 import { Route as GoalsRouteImport } from './routes/goals'
+import { Route as OtherBankLedgerRouteImport } from './routes/other-bank-ledger'
 import { Route as PlRouteImport } from './routes/pl'
 import { Route as PurchaseRouteImport } from './routes/purchase'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -59,6 +60,11 @@ const ExpenseRoute = ExpenseRouteImport.update({
 const GoalsRoute = GoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OtherBankLedgerRoute = OtherBankLedgerRouteImport.update({
+  id: '/other-bank-ledger',
+  path: '/other-bank-ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlRoute = PlRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/drawings': typeof DrawingsRoute
   '/expense': typeof ExpenseRoute
   '/goals': typeof GoalsRoute
+  '/other-bank-ledger': typeof OtherBankLedgerRoute
   '/pl': typeof PlRoute
   '/purchase': typeof PurchaseRoute
   '/reports': typeof ReportsRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/drawings': typeof DrawingsRoute
   '/expense': typeof ExpenseRoute
   '/goals': typeof GoalsRoute
+  '/other-bank-ledger': typeof OtherBankLedgerRoute
   '/pl': typeof PlRoute
   '/purchase': typeof PurchaseRoute
   '/reports': typeof ReportsRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/drawings': typeof DrawingsRoute
   '/expense': typeof ExpenseRoute
   '/goals': typeof GoalsRoute
+  '/other-bank-ledger': typeof OtherBankLedgerRoute
   '/pl': typeof PlRoute
   '/purchase': typeof PurchaseRoute
   '/reports': typeof ReportsRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/drawings'
     | '/expense'
     | '/goals'
+    | '/other-bank-ledger'
     | '/pl'
     | '/purchase'
     | '/reports'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/drawings'
     | '/expense'
     | '/goals'
+    | '/other-bank-ledger'
     | '/pl'
     | '/purchase'
     | '/reports'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/drawings'
     | '/expense'
     | '/goals'
+    | '/other-bank-ledger'
     | '/pl'
     | '/purchase'
     | '/reports'
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   DrawingsRoute: typeof DrawingsRoute
   ExpenseRoute: typeof ExpenseRoute
   GoalsRoute: typeof GoalsRoute
+  OtherBankLedgerRoute: typeof OtherBankLedgerRoute
   PlRoute: typeof PlRoute
   PurchaseRoute: typeof PurchaseRoute
   ReportsRoute: typeof ReportsRoute
@@ -287,6 +300,13 @@ declare module '@tanstack/react-router' {
       path: '/goals'
       fullPath: '/goals'
       preLoaderRoute: typeof GoalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/other-bank-ledger': {
+      id: '/other-bank-ledger'
+      path: '/other-bank-ledger'
+      fullPath: '/other-bank-ledger'
+      preLoaderRoute: typeof OtherBankLedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pl': {
@@ -363,6 +383,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawingsRoute: DrawingsRoute,
   ExpenseRoute: ExpenseRoute,
   GoalsRoute: GoalsRoute,
+  OtherBankLedgerRoute: OtherBankLedgerRoute,
   PlRoute: PlRoute,
   PurchaseRoute: PurchaseRoute,
   ReportsRoute: ReportsRoute,

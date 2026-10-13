@@ -9,6 +9,9 @@
 - [x] Verify grid, sorting and wrapping in the signed-in preview at 1280 / 820 / 390 widths.
 - [x] EMI calculation spec (Loan Start Date informational only, reminder start from today, "Remaining Instalments as of Today", End Date = Next EMI + Remaining − 1 months, recalculate existing plans) — user declined on 2026-10-06 ("no need to change anything, everything works perfectly"); current behaviour stays as is, do not re-propose.
 
+## Other Bank Ledger
+- [x] New sidebar section cloning Bank Ledger UI, fully isolated (own `otherBankAccounts`/`otherBankEntries` collections), Reference Only badges, manual-only entries, duplicate warning, filters/search/reports; verified entry never appears on Dashboard or Bank Ledger.
+
 ## Working style (standing rule)
 - Never ask for approval or mention credit usage; complete work in one shot.
 

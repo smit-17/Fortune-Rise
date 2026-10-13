@@ -55,6 +55,40 @@ export interface CashLocation {
   active: boolean;
 }
 
+/* ---------------- Other Bank Ledger (reference only) ---------------- */
+
+/** A reference-only bank account belonging to another entity. Never part of
+ * the company's active accounting: excluded from every balance, total and
+ * report outside the Other Bank Ledger page. */
+export interface OtherBankAccount {
+  id: string;
+  bankName: string;
+  nickname: string;
+  last4: string;
+  openingBalance: number;
+  active: boolean;
+}
+
+/** A reference-only ledger entry. Stored separately from `transactions` so no
+ * accounting query can ever pick it up. */
+export interface OtherBankEntry {
+  id: string;
+  date: string;
+  accountId: string;
+  direction: "in" | "out";
+  amount: number;
+  /** free-text category label — reference/filtering only, no linked entries */
+  category: string;
+  particulars: string;
+  reference?: string | undefined;
+  notes?: string | undefined;
+  voided: boolean;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export type PartyType = "customer" | "supplier" | "founder" | "other";
 
 export interface Party {
@@ -514,6 +548,9 @@ export interface LepdoData {
   deletedPartyIds?: Record<string, string> | undefined;
   bankAccounts: BankAccount[];
   cashLocations: CashLocation[];
+  /** Reference-only ledgers (Other Bank Ledger) — never counted in accounting. */
+  otherBankAccounts: OtherBankAccount[];
+  otherBankEntries: OtherBankEntry[];
   parties: Party[];
   brokers: Contact[];
   sellers: Contact[];

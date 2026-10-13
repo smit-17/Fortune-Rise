@@ -58,6 +58,8 @@ export function buildSeed(): LepdoData {
     goals: [],
     emiPlans: [],
     emiPayments: [],
+    otherBankAccounts: [],
+    otherBankEntries: [],
     masters: buildDefaultMasters(),
 
     settings: DEFAULT_SETTINGS,
