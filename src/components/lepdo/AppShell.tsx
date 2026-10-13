@@ -56,6 +56,7 @@ const NAV = [
   { to: "/pl", label: "P&L", icon: ChartNoAxesCombined, active: true },
   { to: "/drawings", label: "Drawings", icon: WalletCards, active: true },
   { to: "/bank-ledger", label: "Bank Ledger", icon: Landmark, active: true },
+  { to: "/other-bank-ledger", label: "Other Bank Ledger", icon: Landmark, active: true },
   { to: "/expense", label: "Expense", icon: ReceiptIndianRupee, active: true },
   { to: "/cash-book", label: "Cash Book", icon: Banknote, active: true },
   { to: "/uchhina", label: "Uchhina", icon: HandCoins, active: true },
