@@ -533,7 +533,9 @@ export function PurchaseForm({
       kind === "diamond"
         ? diamondRows.filter((r) => r.line.description.trim() || r.total > 0)
         : makingRows.filter((r) => r.line.description.trim() || r.total > 0);
-    if (!rowsFilled.length) {
+    const legacyNoRows =
+      !!editing && !(editing.lines ?? []).length && !(editing.makingLines ?? []).length;
+    if (!rowsFilled.length && !legacyNoRows) {
       toast.error("Add at least one item with a description or amount.");
       return;
     }

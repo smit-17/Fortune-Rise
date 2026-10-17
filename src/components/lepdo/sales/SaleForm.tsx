@@ -503,7 +503,7 @@ export function SaleForm({
   }
 
   function buildPayload() {
-    const lines =
+    const builtLines =
       kind === "jewelry"
         ? []
         : diamondTotals.rows
@@ -518,6 +518,15 @@ export function SaleForm({
                 ? round2(r.amount / (Number(r.carat) || 1))
                 : Number(r.rate) || 0,
             }));
+
+    // When editing, keep the invoice's saved rows if the reloaded rows filter out
+    // (e.g. older rows saved with manual amounts) so unrelated edits can be saved.
+    const builtJewelry =
+      kind === "jewelry" ? computedJewelry.filter((i) => i.description.trim() && i.total > 0) : [];
+    const keepSaved = !!editing && builtLines.length === 0 && builtJewelry.length === 0;
+    const lines = keepSaved && kind !== "jewelry" ? (editing?.lines ?? []) : builtLines;
+    const jewelryItems =
+      keepSaved && kind === "jewelry" ? (editing?.jewelryItems ?? []) : builtJewelry;
 
     const notesParts = [form.notes || "", manualNotes()].filter(Boolean);
 
@@ -543,10 +552,7 @@ export function SaleForm({
       sellerName: form.sellerName || undefined,
       platform: form.platform,
       invoiceKind: kind ?? "diamond",
-      jewelryItems:
-        kind === "jewelry"
-          ? computedJewelry.filter((i) => i.description.trim() && i.total > 0)
-          : [],
+      jewelryItems,
       foreignTotal: isForeign ? grandTotal : undefined,
       saleType: form.saleType,
       currency: form.currency,

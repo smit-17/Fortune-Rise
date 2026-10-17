@@ -986,8 +986,11 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (input.dueDate && input.dueDate < input.date)
         return { ok: false, message: "Due date cannot be before the invoice date." };
 
+      const prevInv = input.id ? data.salesInvoices.find((i) => i.id === input.id) : undefined;
+      const prevHadRows =
+        !prevInv || (prevInv.lines ?? []).length > 0 || (prevInv.jewelryItems ?? []).length > 0;
       const hasRows = (input.lines ?? []).length > 0 || (input.jewelryItems ?? []).length > 0;
-      if (!hasRows) return { ok: false, message: "Add at least one item row." };
+      if (!hasRows && prevHadRows) return { ok: false, message: "Add at least one item row." };
       if (!(input.total > 0))
         return { ok: false, message: "Invoice total must be greater than zero." };
 
@@ -1211,8 +1214,11 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       if (input.dueDate && input.dueDate < input.date)
         return { ok: false, message: "Due date cannot be before the invoice date." };
 
+      const prevBill = input.id ? data.purchaseBills.find((b) => b.id === input.id) : undefined;
+      const prevHadRows =
+        !prevBill || (prevBill.lines ?? []).length > 0 || (prevBill.makingLines ?? []).length > 0;
       const hasRows = (input.lines ?? []).length > 0 || (input.makingLines ?? []).length > 0;
-      if (!hasRows) return { ok: false, message: "Add at least one item row." };
+      if (!hasRows && prevHadRows) return { ok: false, message: "Add at least one item row." };
       if (!(input.total > 0))
         return { ok: false, message: "Bill total must be greater than zero." };
       const billClash = data.purchaseBills.some(
