@@ -991,7 +991,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
         !prevInv || (prevInv.lines ?? []).length > 0 || (prevInv.jewelryItems ?? []).length > 0;
       const hasRows = (input.lines ?? []).length > 0 || (input.jewelryItems ?? []).length > 0;
       if (!hasRows && prevHadRows) return { ok: false, message: "Add at least one item row." };
-      if (!(input.total > 0))
+      if (!(input.total > 0) && !(prevInv && !(prevInv.total > 0)))
         return { ok: false, message: "Invoice total must be greater than zero." };
 
       const invoiceClash = data.salesInvoices.some(
@@ -1219,7 +1219,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
         !prevBill || (prevBill.lines ?? []).length > 0 || (prevBill.makingLines ?? []).length > 0;
       const hasRows = (input.lines ?? []).length > 0 || (input.makingLines ?? []).length > 0;
       if (!hasRows && prevHadRows) return { ok: false, message: "Add at least one item row." };
-      if (!(input.total > 0))
+      if (!(input.total > 0) && !(prevBill && !(prevBill.total > 0)))
         return { ok: false, message: "Bill total must be greater than zero." };
       const billClash = data.purchaseBills.some(
         (b) =>

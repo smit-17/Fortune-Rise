@@ -530,7 +530,7 @@ export function SaleForm({
 
     const notesParts = [form.notes || "", manualNotes()].filter(Boolean);
 
-    return {
+    const built = {
       id: editing?.id,
       number: form.number,
       partyId: form.partyId,
@@ -578,6 +578,30 @@ export function SaleForm({
       total: payableTotal,
       notes: notesParts.join("\n\n") || undefined,
     } satisfies Record<string, unknown> as unknown as SalesInvoiceInput;
+    // Saved rows were kept because they reloaded empty: keep the saved amounts too,
+    // so unrelated edits (due days, notes…) don't fail on a recomputed zero total.
+    if (keepSaved && editing && !(built.total > 0) && editing.total > 0) {
+      return {
+        ...built,
+        subtotal: editing.subtotal,
+        discount: editing.discount,
+        taxableAmount: editing.taxableAmount,
+        taxAmount: editing.taxAmount,
+        shipping: editing.shipping,
+        cgstAmount: editing.cgstAmount,
+        sgstAmount: editing.sgstAmount,
+        igstAmount: editing.igstAmount,
+        foreignSubtotal: editing.foreignSubtotal,
+        foreignDiscount: editing.foreignDiscount,
+        foreignShipping: editing.foreignShipping,
+        foreignTaxableAmount: editing.foreignTaxableAmount,
+        foreignTaxAmount: editing.foreignTaxAmount,
+        foreignTotal: editing.foreignTotal,
+        roundOff: editing.roundOff,
+        total: editing.total,
+      } as SalesInvoiceInput;
+    }
+    return built;
   }
 
   function validatePayment(): string | null {
