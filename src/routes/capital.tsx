@@ -1,15 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  Landmark,
-  MoreVertical,
-  Plus,
-  Wallet,
-} from "lucide-react";
+import { CalendarClock, CheckCircle2, Landmark, MoreVertical, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,7 +59,6 @@ import {
 } from "@/components/lepdo/shared";
 import {
   buildCapitalViews,
-  buildEmiSchedule,
   buildLiabilityView,
   LIABILITY_KINDS,
   LIABILITY_ENTRY_TYPES,
@@ -77,7 +68,6 @@ import {
 } from "@/lib/lepdo/extras";
 import type { ExportTable } from "@/lib/lepdo/exportTable";
 import type {
-  EmiPayment,
   EmiPlan,
   Liability,
   LiabilityEntry,
@@ -1409,74 +1399,61 @@ function EntryFormModal({
 
 /* ================= EMI Tracker (reminder only) ================= */
 
-const LOAN_TYPES = [
-  "Home Loan",
-  "Car / Vehicle Loan",
-  "Personal Loan",
-  "Business Loan",
-  "Gold Loan",
-  "Credit Card EMI",
-  "Consumer Durable",
-  "Other",
-];
-
-type EmiStatus = "Upcoming" | "Due Today" | "Overdue" | "Completed";
-const EMI_STATUS_TONE: Record<EmiStatus, Tone> = {
-  Upcoming: "blue",
-  "Due Today": "orange",
-  Overdue: "red",
-  Completed: "green",
-};
-const EMI_DATE_CLASS: Record<EmiStatus, string> = {
-  Upcoming: "bg-pl-blue text-navy",
-  "Due Today": "bg-cat-purchase-bg text-cat-purchase",
-  Overdue: "bg-cat-expense-bg text-neg",
-  Completed: "bg-muted text-muted-foreground",
-};
-
-function emiStatusOf(v: ReturnType<typeof buildEmiSchedule>, today: string) {
-  const next = v.schedule.find((r) => !r.paid);
-  let status: EmiStatus = "Completed";
-  if (next) status = next.dueDate < today ? "Overdue" : next.dueDate === today ? "Due Today" : "Upcoming";
-  return { next, status };
-}
-
-function rowStatus(r: { paid: boolean; dueDate: string }, today: string): EmiStatus {
-  if (r.paid) return "Completed";
-  return r.dueDate < today ? "Overdue" : r.dueDate === today ? "Due Today" : "Upcoming";
+/**
+ * Next monthly debit date for a plan, from its due day. Purely a reminder
+ * date — no payment tracking is involved.
+ */
+function nextEmiDate(dueDay: number, today = todayISO()): string {
+  const [y, m] = today.split("-").map(Number);
+  const yy = y ?? 2026;
+  const mm = m ?? 1;
+  const day = Math.max(1, Math.min(31, dueDay));
+  const lastThis = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+  const dThis = Math.min(day, lastThis);
+  const thisMonth = `${today.slice(0, 7)}-${String(dThis).padStart(2, "0")}`;
+  if (thisMonth >= today) return thisMonth;
+  const next = new Date(Date.UTC(yy, mm, 1));
+  const lastNext = new Date(
+    Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  const dNext = Math.min(day, lastNext);
+  return new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), dNext))
+    .toISOString()
+    .slice(0, 10);
 }
 
 function EmiCard({
-  v,
-  accountText,
-  onView,
+  plan,
   onEdit,
   onDelete,
   onClose,
-  onMarkPaid,
+  onReopen,
 }: {
-  v: ReturnType<typeof buildEmiSchedule>;
-  accountText: string;
-  onView: () => void;
+  plan: EmiPlan;
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
-  onMarkPaid: (row: { month: string; dueDate: string }) => void;
+  onReopen: () => void;
 }) {
+  const store = useLepdo();
   const today = todayISO();
-  const { next, status } = emiStatusOf(v, today);
-  const p = v.plan;
+  const closed = !!plan.closed;
+  // Older plans stored a bank-account id; show its name, otherwise the typed text.
+  const linkedBank = store.bankAccounts.find((b) => b.id === plan.paidFromId);
+  const bankText = linkedBank
+    ? `${linkedBank.bankName} — ${linkedBank.nickname}`
+    : plan.paidFromId || "—";
   return (
     <SectionCard className="flex h-full flex-col p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm leading-snug font-semibold break-words text-navy">{p.name}</p>
-          <p className="mt-0.5 text-xs break-words text-muted-foreground">
-            {[p.lender, p.loanType].filter(Boolean).join(" · ") || "—"}
-          </p>
+          <p className="text-sm leading-snug font-semibold break-words text-navy">{plan.name}</p>
+          {plan.notes ? (
+            <p className="mt-0.5 text-xs break-words text-muted-foreground">{plan.notes}</p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Chip tone={EMI_STATUS_TONE[status]}>{status}</Chip>
+          <Chip tone={closed ? "grey" : "green"}>{closed ? "Closed" : "Active"}</Chip>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-7" aria-label="EMI actions">
@@ -1484,9 +1461,12 @@ function EmiCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onView}>View Details</DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={onClose}>Close EMI</DropdownMenuItem>
+              {closed ? (
+                <DropdownMenuItem onClick={onReopen}>Mark as Active</DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={onClose}>Close Loan</DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-destructive" onClick={onDelete}>
                 Delete
               </DropdownMenuItem>
@@ -1494,38 +1474,46 @@ function EmiCard({
           </DropdownMenu>
         </div>
       </div>
-      <div className={cn("mt-3 flex items-center justify-between rounded-md px-3 py-2", EMI_DATE_CLASS[status])}>
+      <div
+        className={cn(
+          "mt-3 flex items-center justify-between rounded-md px-3 py-2",
+          closed ? "bg-muted text-muted-foreground" : "bg-pl-blue text-navy",
+        )}
+      >
         <div>
           <p className="text-[11px] uppercase tracking-wide opacity-80">Next EMI</p>
-          <p className="text-sm font-semibold">{next ? formatDate(next.dueDate) : "All paid"}</p>
+          <p className="text-sm font-semibold">{formatDate(nextEmiDate(plan.dueDay, today))}</p>
         </div>
-        <p className="num text-lg font-bold">{formatMoney(next ? next.amount : p.amount)}</p>
+        <p className="num text-lg font-bold">{formatMoney(plan.amount)}</p>
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <dt className="text-muted-foreground">Remaining</dt>
-        <dd className="text-right font-medium">
-          {v.remainingCount} of {v.schedule.length}
-        </dd>
-        <dt className="text-muted-foreground">Ends</dt>
-        <dd className="text-right font-medium">
-          {formatDate(v.schedule[v.schedule.length - 1]?.dueDate ?? p.startDate)}
-        </dd>
         <dt className="text-muted-foreground">Debit from</dt>
-        <dd className="text-right text-xs leading-snug font-medium break-words">{accountText}</dd>
+        <dd className="text-right text-xs leading-snug font-medium break-words">
+          {bankText}
+        </dd>
       </dl>
       <div className="mt-auto flex gap-2 pt-3">
-        <Button variant="outline" size="sm" className="h-8 flex-1 text-xs" onClick={onView}>
-          View Details
+        <Button variant="outline" size="sm" className="h-8 flex-1 text-xs" onClick={onEdit}>
+          Edit
         </Button>
-        {next ? (
+        {closed ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 flex-1 text-xs"
+            onClick={onReopen}
+          >
+            Mark as Active
+          </Button>
+        ) : (
           <Button
             size="sm"
             className="h-8 flex-1 bg-navy text-xs text-navy-foreground hover:bg-navy/90"
-            onClick={() => onMarkPaid(next)}
+            onClick={onClose}
           >
-            Mark as Paid
+            Close Loan
           </Button>
-        ) : null}
+        )}
       </div>
     </SectionCard>
   );
@@ -1534,16 +1522,9 @@ function EmiCard({
 interface EmiForm {
   id: string | null;
   name: string;
-  lender: string;
-  loanType: string;
   amount: string;
   dueDay: string;
-  paidFromType: SourceType;
-  paidFromId: string;
-  startDate: string;
-  installments: string;
-  interestRate: string;
-  reference: string;
+  bankText: string;
   notes: string;
   closed: boolean;
 }
@@ -1551,16 +1532,9 @@ interface EmiForm {
 const emptyEmiForm = (): EmiForm => ({
   id: null,
   name: "",
-  lender: "",
-  loanType: "",
   amount: "",
   dueDay: "5",
-  paidFromType: "bank",
-  paidFromId: "",
-  startDate: todayISO(),
-  installments: "12",
-  interestRate: "",
-  reference: "",
+  bankText: "",
   notes: "",
   closed: false,
 });
@@ -1570,77 +1544,23 @@ function EmiTab() {
   const today = todayISO();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<EmiPlan | null>(null);
-  const [voidingPlan, setVoidingPlan] = useState<EmiPlan | null>(null);
+  const [closingPlan, setClosingPlan] = useState<EmiPlan | null>(null);
   const [deletingPlan, setDeletingPlan] = useState<EmiPlan | null>(null);
-  const [payTarget, setPayTarget] = useState<{
-    plan: EmiPlan;
-    month: string;
-    dueDate: string;
-  } | null>(null);
-  const [undoTarget, setUndoTarget] = useState<EmiPayment | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   const plans = store.emiPlans;
-  const views = useMemo(
-    () => plans.filter((p) => !p.closed).map((p) => buildEmiSchedule(p, store.emiPayments)),
-    [plans, store.emiPayments],
+  const activePlans = useMemo(
+    () =>
+      plans
+        .filter((p) => !p.closed)
+        .sort((a, b) => {
+          const da = nextEmiDate(a.dueDay, today);
+          const db = nextEmiDate(b.dueDay, today);
+          if (da !== db) return da.localeCompare(db);
+          return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        }),
+    [plans, today],
   );
-  const closedViews = useMemo(
-    () => plans.filter((p) => p.closed).map((p) => buildEmiSchedule(p, store.emiPayments)),
-    [plans, store.emiPayments],
-  );
-
-  const counts = useMemo(() => {
-    const c: Record<EmiStatus, number> = { Upcoming: 0, "Due Today": 0, Overdue: 0, Completed: 0 };
-    for (const v of views) c[emiStatusOf(v, today).status] += 1;
-    c.Completed += closedViews.length;
-    return c;
-  }, [views, closedViews, today]);
-
-  /** Date-wise order: Overdue → Due Today → Upcoming (earliest first) → Completed; ties by name. */
-  const emiCards = useMemo(() => {
-    const rank: Record<EmiStatus, number> = { Overdue: 0, "Due Today": 1, Upcoming: 2, Completed: 3 };
-    const items = views
-      .map((v) => ({ v, ...emiStatusOf(v, today) }))
-      .sort((a, b) => {
-        if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
-        const da = a.next?.dueDate ?? "";
-        const db = b.next?.dueDate ?? "";
-        if (da !== db) return da.localeCompare(db);
-        return a.v.plan.name.localeCompare(b.v.plan.name, undefined, { sensitivity: "base" });
-      });
-    return items.map((it) => it.v);
-  }, [views, today]);
-
-  const accountLabel = (type?: SourceType, id?: string) => {
-    if (!type || !id) return "—";
-    if (type === "bank") {
-      const b = store.bankAccounts.find((a) => a.id === id);
-      return b ? `${b.bankName} — ${b.nickname}` : "—";
-    }
-    const c = store.cashLocations.find((a) => a.id === id);
-    return c ? c.name : "—";
-  };
-
-  const markPaid = (amount: string, date: string, notes: string) => {
-    if (!payTarget) return;
-    const amt = Number(amount) || 0;
-    if (amt <= 0) {
-      toast.error("Enter a valid amount.");
-      return;
-    }
-    const rec = store.stamp("emipay", {
-      planId: payTarget.plan.id,
-      month: payTarget.month,
-      date,
-      amount: amt,
-      notes: notes || undefined,
-      voided: false,
-    });
-    store.saveRecord("emiPayments", rec as EmiPayment);
-    toast.success("Instalment marked as paid.");
-    setPayTarget(null);
-  };
+  const closedPlans = useMemo(() => plans.filter((p) => p.closed), [plans]);
 
   const deletePlan = () => {
     if (!deletingPlan) return;
@@ -1652,13 +1572,26 @@ function EmiTab() {
     setDeletingPlan(null);
   };
 
+  const setClosed = (plan: EmiPlan, closed: boolean) => {
+    store.saveRecord("emiPlans", { ...plan, closed });
+    toast.success(closed ? "Loan closed." : "Loan marked active again.");
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard label="Upcoming" value={String(counts.Upcoming)} tone="blue" icon={<CalendarClock className="size-4" />} />
-        <StatCard label="Due Today" value={String(counts["Due Today"])} tone="orange" icon={<Wallet className="size-4" />} />
-        <StatCard label="Overdue" value={String(counts.Overdue)} tone={counts.Overdue > 0 ? "red" : "grey"} icon={<AlertTriangle className="size-4" />} />
-        <StatCard label="Completed" value={String(counts.Completed)} tone="green" icon={<CheckCircle2 className="size-4" />} />
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard
+          label="Active Loans"
+          value={String(activePlans.length)}
+          tone="green"
+          icon={<CalendarClock className="size-4" />}
+        />
+        <StatCard
+          label="Closed Loans"
+          value={String(closedPlans.length)}
+          tone="grey"
+          icon={<CheckCircle2 className="size-4" />}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1676,7 +1609,7 @@ function EmiTab() {
         </Button>
       </div>
 
-      {views.length === 0 && closedViews.length === 0 ? (
+      {activePlans.length === 0 && closedPlans.length === 0 ? (
         <EmptyState title="No EMI plans yet" hint="Add an EMI plan to get monthly payment reminders." />
       ) : (
         <div
@@ -1686,54 +1619,57 @@ function EmiTab() {
               "repeat(auto-fit, minmax(min(max(300px, calc((100% - 32px) / 3)), 100%), 1fr))",
           }}
         >
-          {emiCards.map((v) => (
+          {activePlans.map((p) => (
             <EmiCard
-              key={v.plan.id}
-              v={v}
-              accountText={accountLabel(v.plan.paidFromType, v.plan.paidFromId)}
-              onView={() => setDetailId(v.plan.id)}
+              key={p.id}
+              plan={p}
               onEdit={() => {
-                setEditing(v.plan);
+                setEditing(p);
                 setFormOpen(true);
               }}
-              onClose={() => setVoidingPlan(v.plan)}
-              onDelete={() => setDeletingPlan(v.plan)}
-              onMarkPaid={(r) => setPayTarget({ plan: v.plan, month: r.month, dueDate: r.dueDate })}
+              onClose={() => setClosingPlan(p)}
+              onReopen={() => setClosed(p, false)}
+              onDelete={() => setDeletingPlan(p)}
             />
           ))}
         </div>
       )}
 
-      {closedViews.length > 0 ? (
-        <SectionCard title="Closed EMI Plans">
+      {closedPlans.length > 0 ? (
+        <SectionCard title="Closed Loans">
           <ul className="divide-y divide-border text-sm">
-            {closedViews.map((v) => (
-              <li key={v.plan.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            {closedPlans.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
-                  <p className="font-medium text-foreground">{v.plan.name}</p>
+                  <p className="font-medium text-foreground">{p.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatMoney(v.plan.amount)}/month · Paid {v.paidCount}/{v.schedule.length}
+                    {formatMoney(p.amount)}/month · Debit day {p.dueDay}
+                    {p.paidFromId ? ` · ${p.paidFromId}` : ""}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setDetailId(v.plan.id)}>
-                    View Details
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => setClosed(p, false)}
+                  >
+                    Mark as Active
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
-                      store.saveRecord("emiPlans", { ...v.plan, closed: false });
-                      toast.success("EMI plan reopened.");
+                      setEditing(p);
+                      setFormOpen(true);
                     }}
                   >
-                    Reopen
+                    Edit
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-destructive"
-                    onClick={() => setDeletingPlan(v.plan)}
+                    onClick={() => setDeletingPlan(p)}
                   >
                     Delete
                   </Button>
@@ -1744,121 +1680,27 @@ function EmiTab() {
         </SectionCard>
       ) : null}
 
-      {(() => {
-        const dv = [...views, ...closedViews].find((x) => x.plan.id === detailId);
-        const p = dv?.plan;
-        return (
-          <Dialog open={!!dv} onOpenChange={(o) => !o && setDetailId(null)}>
-            <DialogContent className="flex max-h-[92dvh] max-w-3xl flex-col gap-0 p-0">
-              <DialogHeader className="border-b border-border px-5 py-4 text-left">
-                <DialogTitle className="text-navy">{p?.name ?? "EMI"}</DialogTitle>
-                <DialogDescription>
-                  {dv && p
-                    ? [
-                        p.lender,
-                        p.loanType,
-                        `${formatMoney(p.amount)}/month`,
-                        `Debit day ${p.dueDay}`,
-                        `Debit from ${accountLabel(p.paidFromType, p.paidFromId)}`,
-                        p.interestRate != null ? `Interest ${p.interestRate}%` : "",
-                        p.reference ? `Ref ${p.reference}` : "",
-                        `Paid ${dv.paidCount}/${dv.schedule.length}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
-                    : ""}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto px-5 py-4">
-                {dv ? (
-                  <table className="w-full min-w-[560px] text-sm">
-                    <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-semibold">#</th>
-                        <th className="px-3 py-2 text-left font-semibold">Due Date</th>
-                        <th className="px-3 py-2 text-right font-semibold">Amount</th>
-                        <th className="px-3 py-2 text-left font-semibold">Status</th>
-                        <th className="px-3 py-2 text-left font-semibold">Paid On</th>
-                        <th className="px-2 py-2 text-right font-semibold">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dv.schedule.map((r, i) => {
-                        const st = rowStatus(r, today);
-                        return (
-                          <tr key={r.month} className="border-t border-border">
-                            <td className="px-3 py-2">{i + 1}</td>
-                            <td className="whitespace-nowrap px-3 py-2">
-                              <span className={cn("rounded px-1.5 py-0.5", EMI_DATE_CLASS[st])}>
-                                {formatDate(r.dueDate)}
-                              </span>
-                            </td>
-                            <td className="num whitespace-nowrap px-3 py-2 text-right">
-                              {formatMoney(r.amount)}
-                            </td>
-                            <td className="px-3 py-2">
-                              <Chip tone={EMI_STATUS_TONE[st]}>{r.paid ? "Paid" : st}</Chip>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
-                              {r.paid && r.payment ? formatDate(r.payment.date) : "—"}
-                            </td>
-                            <td className="px-2 py-2 text-right">
-                              {r.paid ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs text-destructive"
-                                  onClick={() => r.payment && setUndoTarget(r.payment)}
-                                >
-                                  Undo
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() =>
-                                    setPayTarget({ plan: dv.plan, month: r.month, dueDate: r.dueDate })
-                                  }
-                                >
-                                  Mark as Paid
-                                </Button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : null}
-              </div>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
-
       <EmiFormModal open={formOpen} editing={editing} onClose={() => setFormOpen(false)} />
 
-      <AlertDialog open={!!voidingPlan} onOpenChange={(o) => !o && setVoidingPlan(null)}>
+      <AlertDialog open={!!closingPlan} onOpenChange={(o) => !o && setClosingPlan(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Close this EMI plan?</AlertDialogTitle>
+            <AlertDialogTitle>Close this loan?</AlertDialogTitle>
             <AlertDialogDescription>
-              {voidingPlan ? `${voidingPlan.name} will move to Closed EMI Plans and can be reopened.` : ""}
+              {closingPlan
+                ? `${closingPlan.name} will move to Closed Loans and can be marked active again anytime.`
+                : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (voidingPlan) {
-                  store.saveRecord("emiPlans", { ...voidingPlan, closed: true });
-                  toast.success("EMI plan closed.");
-                }
-                setVoidingPlan(null);
+                if (closingPlan) setClosed(closingPlan, true);
+                setClosingPlan(null);
               }}
             >
-              Close EMI
+              Close Loan
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1870,7 +1712,7 @@ function EmiTab() {
             <AlertDialogTitle>Delete this EMI reminder?</AlertDialogTitle>
             <AlertDialogDescription>
               {deletingPlan
-                ? `${deletingPlan.name} and its paid marks will be removed. No accounting entry is affected.`
+                ? `${deletingPlan.name} will be removed. No accounting entry is affected.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1880,100 +1722,9 @@ function EmiTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog open={!!undoTarget} onOpenChange={(o) => !o && setUndoTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Undo this payment?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {undoTarget
-                ? `${formatMoney(undoTarget.amount)} instalment for ${undoTarget.month} will be marked unpaid again.`
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (undoTarget) {
-                  store.setRecordVoided("emiPayments", undoTarget.id, true);
-                  toast.success("Payment undone.");
-                }
-                setUndoTarget(null);
-              }}
-            >
-              Undo Payment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {payTarget ? (
-        <MarkPaidModal
-          open={!!payTarget}
-          dueDate={payTarget.dueDate}
-          defaultAmount={payTarget.plan.amount}
-          onClose={() => setPayTarget(null)}
-          onConfirm={markPaid}
-        />
-      ) : null}
     </div>
   );
 }
-
-function MarkPaidModal({
-  open,
-  dueDate,
-  defaultAmount,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  dueDate: string;
-  defaultAmount: number;
-  onClose: () => void;
-  onConfirm: (amount: string, date: string, notes: string) => void;
-}) {
-  const [amount, setAmount] = useState(String(defaultAmount));
-  const [date, setDate] = useState(todayISO());
-  const [notes, setNotes] = useState("");
-
-  return (
-    <ModalShell
-      open={open}
-      onClose={onClose}
-      title="Mark Instalment as Paid"
-      subtitle={`Due ${formatDate(dueDate)}`}
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            className="bg-navy text-navy-foreground hover:bg-navy/90"
-            onClick={() => onConfirm(amount, date, notes)}
-          >
-            Confirm Paid
-          </Button>
-        </>
-      }
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Amount">
-          <MoneyInput value={toNum(amount)} onChange={(n) => setAmount(String(n))} />
-        </Field>
-        <TextField label="Paid Date" type="date" value={date} onChange={setDate} />
-        <Field label="Notes" className="sm:col-span-2">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-        </Field>
-      </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        This only updates the EMI schedule; it does not create a Bank/Cash transaction.
-      </p>
-    </ModalShell>
-  );
-}
-
 
 function EmiFormModal({
   open,
@@ -1993,18 +1744,9 @@ function EmiFormModal({
       ? {
           id: editing.id,
           name: editing.name,
-          lender: editing.lender ?? "",
-          loanType: editing.loanType ?? "",
           amount: String(editing.amount),
           dueDay: String(editing.dueDay),
-          paidFromType: editing.paidFromType ?? "bank",
-          paidFromId: editing.paidFromId ?? "",
-          startDate: editing.startDate,
-          installments: String(
-            editing.installments ?? buildEmiSchedule(editing, []).schedule.length,
-          ),
-          interestRate: editing.interestRate != null ? String(editing.interestRate) : "",
-          reference: editing.reference ?? "",
+          bankText: editing.paidFromId ?? "",
           notes: editing.notes ?? "",
           closed: !!editing.closed,
         }
@@ -2014,39 +1756,9 @@ function EmiFormModal({
 
   const set = <K extends keyof EmiForm>(k: K, v: EmiForm[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const sources =
-    form.paidFromType === "bank"
-      ? store.bankAccounts.filter((b) => b.active)
-      : store.cashLocations.filter((c) => c.active);
-
-  const preview = useMemo(() => {
-    const count = Number(form.installments) || 0;
-    const dueDay = Number(form.dueDay) || 0;
-    if (count < 1 || dueDay < 1 || dueDay > 31 || !form.startDate) return null;
-    const v = buildEmiSchedule(
-      {
-        id: form.id ?? "__preview__",
-        name: "",
-        amount: Number(form.amount) || 0,
-        dueDay,
-        startDate: form.startDate,
-        installments: count,
-        createdAt: "",
-        createdBy: "",
-        updatedAt: "",
-        updatedBy: "",
-      },
-      form.id ? store.emiPayments : [],
-    );
-    return {
-      endDate: v.schedule[v.schedule.length - 1]?.dueDate ?? "",
-      remaining: v.remainingCount,
-    };
-  }, [form.installments, form.dueDay, form.startDate, form.amount, form.id, store.emiPayments]);
-
   const submit = () => {
     if (!form.name.trim()) {
-      toast.error("Enter the EMI / loan name.");
+      toast.error("Enter the EMI title / reason.");
       return;
     }
     const amount = Number(form.amount) || 0;
@@ -2059,30 +1771,22 @@ function EmiFormModal({
       toast.error("Monthly debit date must be between 1 and 31.");
       return;
     }
-    if (!form.paidFromId) {
-      toast.error("Select the bank / cash account.");
-      return;
-    }
-    if (!Number(form.installments) || Number(form.installments) < 1) {
-      toast.error("Enter number of instalments.");
-      return;
-    }
     setSaving(true);
     try {
       const rec = store.stamp("emiplan", {
         id: editing?.id,
         name: form.name.trim(),
-        lender: form.lender.trim() || undefined,
-        loanType: form.loanType || undefined,
+        lender: editing?.lender,
+        loanType: editing?.loanType,
+        interestRate: editing?.interestRate,
+        reference: editing?.reference,
         amount,
         dueDay,
-        paidFromType: form.paidFromType,
-        paidFromId: form.paidFromId,
-        startDate: form.startDate,
+        paidFromType: "bank",
+        paidFromId: form.bankText.trim(),
+        startDate: editing?.startDate || todayISO(),
         endDate: undefined,
-        installments: Number(form.installments),
-        interestRate: form.interestRate ? Number(form.interestRate) : undefined,
-        reference: form.reference.trim() || undefined,
+        installments: editing?.installments ?? 12,
         notes: form.notes || undefined,
         closed: form.closed,
       });
@@ -2115,90 +1819,30 @@ function EmiFormModal({
         </>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <TextField label="EMI / Loan Name" value={form.name} onChange={(v) => set("name", v)} />
-        <TextField
-          label="Lender / Finance Company"
-          value={form.lender}
-          onChange={(v) => set("lender", v)}
-        />
-        <Field label="Loan Type">
-          <Select value={form.loanType} onValueChange={(v) => set("loanType", v)}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="Select loan type" />
-            </SelectTrigger>
-            <SelectContent>
-              {LOAN_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="grid gap-3">
+        <TextField label="EMI Title / Reason" value={form.name} onChange={(v) => set("name", v)} />
+        <Field label="EMI Debit Date (day of month, 1-31)">
+          <NumInput
+            decimals={0}
+            value={toNum(form.dueDay)}
+            onChange={(n) => set("dueDay", String(n))}
+          />
         </Field>
-        <TextField
-          label="Loan Start Date"
-          type="date"
-          value={form.startDate}
-          onChange={(v) => set("startDate", v)}
-        />
+        <Field
+          label="Debit From Bank"
+          hint="Type any bank name — for reminder only, no balance is changed."
+        >
+          <Input
+            value={form.bankText}
+            onChange={(e) => set("bankText", e.target.value)}
+            placeholder="e.g. HDFC Bank — Current A/c"
+            className="h-9 text-sm"
+          />
+        </Field>
         <Field label="EMI Amount">
           <MoneyInput value={toNum(form.amount)} onChange={(n) => set("amount", String(n))} />
         </Field>
-        <Field label="Monthly Debit Date (1-31)">
-          <NumInput decimals={0} value={toNum(form.dueDay)} onChange={(n) => set("dueDay", String(n))} />
-        </Field>
-        <Field label="Debit From">
-          <Select
-            value={form.paidFromType}
-            onValueChange={(v) => setForm((f) => ({ ...f, paidFromType: v as SourceType, paidFromId: "" }))}
-          >
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="bank">Bank</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Bank / Cash Account" hint="For reminder only — no balance is changed.">
-          <Select value={form.paidFromId} onValueChange={(v) => set("paidFromId", v)}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="Select account" />
-            </SelectTrigger>
-            <SelectContent>
-              {sources.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {"bankName" in s ? `${s.bankName} — ${s.nickname}` : s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Number of Instalments">
-          <NumInput
-            decimals={0}
-            value={toNum(form.installments)}
-            onChange={(n) => set("installments", String(n))}
-          />
-        </Field>
-        <Field label="Interest Rate % (optional)">
-          <NumInput value={toNum(form.interestRate)} onChange={(n) => set("interestRate", n ? String(n) : "")} />
-        </Field>
-        <Field label="Loan End Date (auto)">
-          <Input className="h-9" readOnly value={preview?.endDate ? formatDate(preview.endDate) : "—"} />
-        </Field>
-        <Field label="Remaining Instalments (auto)">
-          <Input className="h-9" readOnly value={preview ? String(preview.remaining) : "—"} />
-        </Field>
-        <TextField
-          label="Loan Account / Reference No. (optional)"
-          className="sm:col-span-2"
-          value={form.reference}
-          onChange={(v) => set("reference", v)}
-        />
-        <Field label="Notes (optional)" className="sm:col-span-2">
+        <Field label="Other Details (optional)">
           <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
         </Field>
       </div>

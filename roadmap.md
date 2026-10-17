@@ -8,6 +8,7 @@
 - [x] Active plans in one responsive card grid (3 desktop / 2 tablet / 1 phone), equal size, Next EMI date inside each card, no date heading rows, Closed plans in their own section below.
 - [x] Verify grid, sorting and wrapping in the signed-in preview at 1280 / 820 / 390 widths.
 - [x] EMI calculation spec (Loan Start Date informational only, reminder start from today, "Remaining Instalments as of Today", End Date = Next EMI + Remaining − 1 months, recalculate existing plans) — user declined on 2026-10-06 ("no need to change anything, everything works perfectly"); current behaviour stays as is, do not re-propose.
+- [x] Simplified to reminder-only (2026-10-14): no Mark as Paid / Paid / Unpaid / Overdue / Skip / payment history; only Active/Closed statuses with Close Loan and Mark as Active; Debit From Bank is a free-text field (no bank master required); form keeps EMI Title, Debit Date, Amount, Other Details; Edit/Delete kept; never touches any accounting section.
 
 ## Other Bank Ledger
 - [x] New sidebar section cloning Bank Ledger UI, fully isolated (own `otherBankAccounts`/`otherBankEntries` collections), Reference Only badges, manual-only entries, duplicate warning, filters/search/reports; verified entry never appears on Dashboard or Bank Ledger.
