@@ -420,13 +420,21 @@ function PurchasePage() {
 
         {/* dashboard */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
-          <Stat
-            label="Total Carats"
-            value={`${totals.carats.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ct`}
-            tone="purchase"
-            hint="Diamond rows + making-bill diamond weight"
-            icon={<Gem className="h-4 w-4 opacity-70" />}
-          />
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <Stat
+              label="Total Carats"
+              value={`${totals.carats.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ct`}
+              tone="purchase"
+              hint="Diamond rows + making-bill diamond weight"
+              icon={<Gem className="h-4 w-4 opacity-70" />}
+            />
+            <Stat
+              label="Avg Purchase Price / CT"
+              value={formatMoney(totals.carats > 0 ? round2(totals.purchases / totals.carats) : 0)}
+              tone="gold"
+              hint={totals.carats > 0 ? label : "No carat weight recorded"}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <Stat
               label="Total Purchases"

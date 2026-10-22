@@ -23,6 +23,7 @@ export const TONE: Record<string, string> = {
   settled: "bg-sl-settled-bg text-sl-settled",
   purchase: "bg-pu-total-bg text-pu-total",
   supplier: "bg-pu-supplier-bg text-pu-supplier",
+  gold: "bg-gold-tint text-gold",
 };
 
 export function Stat({
