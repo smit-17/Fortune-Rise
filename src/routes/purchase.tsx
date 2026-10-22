@@ -11,6 +11,7 @@ import {
   Truck,
   Users,
   Wallet,
+  Gem,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDate, formatMoney, todayISO } from "@/lib/lepdo/format";
+import { formatDate, formatMoney, round2, todayISO } from "@/lib/lepdo/format";
 import { useLepdo } from "@/lib/lepdo/store";
 import { PRESETS, periodLabel, rangeFor, type Preset } from "@/lib/lepdo/period";
 import {
@@ -295,6 +296,15 @@ function PurchasePage() {
     paidBills: rows.filter((v) => v.status === "paid").length,
     partBills: rows.filter((v) => v.status === "part").length,
     pendingBills: rows.filter((v) => v.status === "pending" || v.status === "overdue").length,
+    carats: round2(
+      rows.reduce(
+        (s, v) =>
+          s +
+          (v.bill.lines ?? []).reduce((a, l) => a + (Number(l.carat) || 0), 0) +
+          (v.bill.makingLines ?? []).reduce((a, m) => a + (Number(m.diamondWeight) || 0), 0),
+        0,
+      ),
+    ),
   };
 
   const label = periodLabel(shell.preset);
@@ -410,6 +420,13 @@ function PurchasePage() {
 
         {/* dashboard */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
+          <Stat
+            label="Total Carats"
+            value={`${totals.carats.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ct`}
+            tone="purchase"
+            hint="Diamond rows + making-bill diamond weight"
+            icon={<Gem className="h-4 w-4 opacity-70" />}
+          />
           <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <Stat
               label="Total Purchases"

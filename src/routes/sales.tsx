@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  Gem,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,6 +206,18 @@ function SalesPage() {
     part: filteredInvoices.filter((v) => v.status === "part").length,
     pendingCount: filteredInvoices.filter((v) => v.status === "pending").length,
     overdue: filteredInvoices.filter((v) => v.status === "overdue").length,
+    carats: round2(
+      filteredInvoices.reduce(
+        (s, v) =>
+          s +
+          (v.invoice.lines ?? []).reduce((a, l) => a + (Number(l.carat) || 0), 0) +
+          (v.invoice.jewelryItems ?? []).reduce(
+            (a, it) => a + (it.stones ?? []).reduce((b, st) => b + (Number(st.carat) || 0), 0),
+            0,
+          ),
+        0,
+      ),
+    ),
   };
 
   /* ------------------- Invoice-Wise: filtered + sorted rows ------------------ */
@@ -460,6 +473,13 @@ function SalesPage() {
 
       {tab === "dashboard" ? (
         <div className="space-y-4">
+          <Stat
+            label="Total Carats"
+            value={`${totals.carats.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ct`}
+            tone="total"
+            hint="Diamond rows + jewelry stones"
+            icon={<Gem className="size-4" />}
+          />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Stat
               label="Total Sales"

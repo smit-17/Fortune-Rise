@@ -313,7 +313,12 @@ export function SaleForm({
               pcs: l.quantity || 1,
               carat: l.carat,
               rate: l.rate,
-              manualAmount: undefined,
+              // restore the saved row amount when it differs from carat × rate
+              manualAmount:
+                l.total !== undefined &&
+                Math.abs(round2(l.total) - round2((Number(l.carat) || 0) * (Number(l.rate) || 0))) > 0.005
+                  ? round2(l.total)
+                  : undefined,
               manualReason: "",
             }))
           : [emptyDiamond()],
@@ -324,6 +329,20 @@ export function SaleForm({
           ? editing.jewelryItems.map((i) => ({ ...i }))
           : [emptyJewelry()],
       );
+      // restore manually typed metal / making / item totals so every saved value reloads
+      const restored: Record<string, ItemManual> = {};
+      for (const it of editing.jewelryItems ?? []) {
+        const auto = computeJewelry(it);
+        const m = emptyItemManual();
+        const diff = (a: number, b: number) => Math.abs(round2(a) - round2(b)) > 0.005;
+        if (diff(Number(it.metalValue) || 0, auto.metalValue)) m.metal = round2(Number(it.metalValue) || 0);
+        if (diff(Number(it.makingValue) || 0, auto.makingValue)) m.making = round2(Number(it.makingValue) || 0);
+        const metal = m.metal ?? auto.metalValue;
+        const making = m.making ?? auto.makingValue;
+        if (diff(Number(it.total) || 0, metal + making + auto.stoneValue)) m.total = round2(Number(it.total) || 0);
+        if (m.metal !== undefined || m.making !== undefined || m.total !== undefined) restored[it.id] = m;
+      }
+      setItemManuals(restored);
       return;
     }
     setKind(null);
@@ -517,6 +536,7 @@ export function SaleForm({
               rate: r.manualAmount !== undefined && (Number(r.carat) || 0) > 0
                 ? round2(r.amount / (Number(r.carat) || 1))
                 : Number(r.rate) || 0,
+              total: r.amount,
             }));
 
     // When editing, keep the invoice's saved rows if the reloaded rows filter out

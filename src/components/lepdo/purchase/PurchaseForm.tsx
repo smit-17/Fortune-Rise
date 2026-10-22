@@ -317,6 +317,7 @@ export function PurchaseForm({
     setShippingOv(emptyOverride());
     setGrandOv(emptyOverride());
     setPaidOv(emptyOverride());
+    setRoundOffOv(emptyOverride());
     setExpandedRows({});
     if (editing) {
       setKind(((editing.billKind === "jewelry_making" ? "jewelry_making" : "diamond")) as BillKind);
@@ -331,7 +332,7 @@ export function PurchaseForm({
         notes: editing.notes ?? "",
         purchaseType: editing.purchaseType ?? "non_gst",
         supplyLocation: editing.supplyLocation ?? "inside",
-        taxSlab: editing.igstAmount ? "" : "0",
+        taxSlab: editing.gstRate != null ? String(editing.gstRate) : "0",
         discountMode: editing.discountMode ?? "fixed",
         discountValue: editing.discountValue ?? 0,
       });
@@ -347,6 +348,35 @@ export function PurchaseForm({
       setMaking(
         (editing.makingLines ?? []).length ? [...(editing.makingLines ?? [])] : [emptyMaking()],
       );
+      // restore saved amounts that were typed manually, so every original value reloads
+      const diff = (a: number, b: number) => Math.abs(round2(a) - round2(b)) > 0.005;
+      const ovs: Record<string, Override> = {};
+      let lineSum = 0;
+      for (const m of editing.makingLines ?? []) {
+        const perGram = n(m.makingRatePerGram) || n(m.makingRate);
+        const tm = n(m.totalMaking) > 0 ? round2(n(m.totalMaking)) : round2(n(m.netWeight) * perGram);
+        const auto = round2(tm + n(m.stoneAmount));
+        if (diff(n(m.total), auto)) ovs[m.id] = { manual: round2(n(m.total)), reason: "Saved amount" };
+        if (editing.billKind === "jewelry_making") lineSum += n(m.total);
+      }
+      if (editing.billKind !== "jewelry_making")
+        for (const l of editing.lines ?? []) lineSum += n(l.total ?? round2(n(l.carat) * n(l.rate)));
+      setMakingOv(ovs);
+      const savedSubtotal = n(editing.subtotal);
+      if (editing.subtotal != null && diff(savedSubtotal, lineSum))
+        setSubtotalOv({ manual: round2(savedSubtotal), reason: "Saved amount" });
+      const sub = editing.subtotal != null ? savedSubtotal : lineSum;
+      const dv = n(editing.discountValue);
+      const discAuto = round2(editing.discountMode === "percent" ? (sub * dv) / 100 : dv);
+      if (editing.discount != null && diff(n(editing.discount), discAuto))
+        setDiscountOv({ manual: round2(n(editing.discount)), reason: "Saved amount" });
+      if (n(editing.shipping)) setShippingOv({ manual: round2(n(editing.shipping)), reason: "Saved amount" });
+      if (n(editing.roundOff)) setRoundOffOv({ manual: round2(n(editing.roundOff)), reason: "Saved amount" });
+      const expected = round2(
+        Math.max(0, sub - n(editing.discount)) + n(editing.taxAmount) + n(editing.shipping) + n(editing.roundOff),
+      );
+      if (diff(n(editing.total), expected))
+        setGrandOv({ manual: round2(n(editing.total)), reason: "Saved amount" });
     } else {
       setKind("diamond");
       setHead({
@@ -568,8 +598,9 @@ export function PurchaseForm({
     }
 
     setSaving(true);
-    const overrideNote = activeOverrides.length
-      ? `Manual overrides — ${activeOverrides
+    const notedOverrides = activeOverrides.filter((o) => o.ov.reason.trim() !== "Saved amount");
+    const overrideNote = notedOverrides.length
+      ? `Manual overrides — ${notedOverrides
           .map((o) => `${o.label}: ${formatMoney(round2(o.ov.manual ?? 0))} (was ${formatMoney(o.auto)}) — ${o.ov.reason.trim()}`)
           .join("; ")}`
       : "";
@@ -613,6 +644,8 @@ export function PurchaseForm({
       discount: discountAmount || undefined,
       taxableAmount,
       taxAmount: round2(cgstAmount + sgstAmount + igstAmount) || undefined,
+      shipping: shippingAmount || undefined,
+      roundOff: roundOffAmount || undefined,
       total: grandTotal,
       notes: notes || undefined,
     });

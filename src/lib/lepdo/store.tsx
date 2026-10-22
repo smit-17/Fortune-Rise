@@ -129,6 +129,8 @@ export interface PurchaseBillInput extends InvoiceExtraInput {
   discount?: number | undefined;
   taxableAmount?: number | undefined;
   taxAmount?: number | undefined;
+  shipping?: number | undefined;
+  roundOff?: number | undefined;
   total: number;
   notes?: string | undefined;
 }
@@ -1266,9 +1268,9 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           cgstAmount: input.cgstAmount,
           sgstAmount: input.sgstAmount,
           igstAmount: input.igstAmount,
-          shipping: 0,
+          shipping: round2(input.shipping ?? 0),
 
-          roundOff: 0,
+          roundOff: round2(input.roundOff ?? 0),
           notes: input.notes,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
