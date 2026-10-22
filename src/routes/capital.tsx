@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { formatDate, formatDateTime, formatMoney, todayISO } from "@/lib/lepdo/format";
+import { formatDate, formatDateTime, formatMoney, round2, todayISO } from "@/lib/lepdo/format";
 import { MoneyInput, NumInput, toNum } from "@/components/lepdo/numeric";
 import { useLepdo, partyName, type NewEntryInput } from "@/lib/lepdo/store";
 import { DRAWING_ACCOUNTS, DRAWING_PARTIES } from "@/lib/lepdo/drawings";
@@ -1399,29 +1399,6 @@ function EntryFormModal({
 
 /* ================= EMI Tracker (reminder only) ================= */
 
-/**
- * Next monthly debit date for a plan, from its due day. Purely a reminder
- * date — no payment tracking is involved.
- */
-function nextEmiDate(dueDay: number, today = todayISO()): string {
-  const [y, m] = today.split("-").map(Number);
-  const yy = y ?? 2026;
-  const mm = m ?? 1;
-  const day = Math.max(1, Math.min(31, dueDay));
-  const lastThis = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
-  const dThis = Math.min(day, lastThis);
-  const thisMonth = `${today.slice(0, 7)}-${String(dThis).padStart(2, "0")}`;
-  if (thisMonth >= today) return thisMonth;
-  const next = new Date(Date.UTC(yy, mm, 1));
-  const lastNext = new Date(
-    Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  const dNext = Math.min(day, lastNext);
-  return new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), dNext))
-    .toISOString()
-    .slice(0, 10);
-}
-
 function EmiCard({
   plan,
   onEdit,
@@ -1436,7 +1413,6 @@ function EmiCard({
   onReopen: () => void;
 }) {
   const store = useLepdo();
-  const today = todayISO();
   const closed = !!plan.closed;
   // Older plans stored a bank-account id; show its name, otherwise the typed text.
   const linkedBank = store.bankAccounts.find((b) => b.id === plan.paidFromId);
@@ -1481,8 +1457,8 @@ function EmiCard({
         )}
       >
         <div>
-          <p className="text-[11px] uppercase tracking-wide opacity-80">Next EMI</p>
-          <p className="text-sm font-semibold">{formatDate(nextEmiDate(plan.dueDay, today))}</p>
+          <p className="text-[11px] uppercase tracking-wide opacity-80">EMI Debit Date</p>
+          <p className="text-sm font-semibold">Day {plan.dueDay} of month</p>
         </div>
         <p className="num text-lg font-bold">{formatMoney(plan.amount)}</p>
       </div>
@@ -1541,26 +1517,29 @@ const emptyEmiForm = (): EmiForm => ({
 
 function EmiTab() {
   const store = useLepdo();
-  const today = todayISO();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<EmiPlan | null>(null);
   const [closingPlan, setClosingPlan] = useState<EmiPlan | null>(null);
   const [deletingPlan, setDeletingPlan] = useState<EmiPlan | null>(null);
 
   const plans = store.emiPlans;
+  // Ordered by the saved debit day, then by title. No upcoming-date calculation.
   const activePlans = useMemo(
     () =>
       plans
         .filter((p) => !p.closed)
         .sort((a, b) => {
-          const da = nextEmiDate(a.dueDay, today);
-          const db = nextEmiDate(b.dueDay, today);
-          if (da !== db) return da.localeCompare(db);
+          if (a.dueDay !== b.dueDay) return a.dueDay - b.dueDay;
           return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
         }),
-    [plans, today],
+    [plans],
   );
   const closedPlans = useMemo(() => plans.filter((p) => p.closed), [plans]);
+  /** Sum of EMI amounts from active records only; closed loans are excluded. */
+  const totalActiveEmi = useMemo(
+    () => round2(activePlans.reduce((s, p) => s + (p.amount || 0), 0)),
+    [activePlans],
+  );
 
   const deletePlan = () => {
     if (!deletingPlan) return;
@@ -1579,6 +1558,24 @@ function EmiTab() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-navy/25 bg-navy p-4 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">
+              Total Active EMI Amount
+            </p>
+            <p className="num mt-1 text-2xl font-bold text-navy-foreground sm:text-3xl">
+              {formatMoney(totalActiveEmi)}
+            </p>
+            <p className="mt-1 text-xs text-navy-foreground/70">
+              Sum of EMI amounts from {activePlans.length} active{" "}
+              {activePlans.length === 1 ? "loan" : "loans"}. Closed loans are not included.
+            </p>
+          </div>
+          <Chip tone="green">Reminders only</Chip>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           label="Active Loans"
