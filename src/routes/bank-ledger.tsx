@@ -156,6 +156,7 @@ function BankLedgerPage() {
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
   const [bankFilter, setBankFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
@@ -195,7 +196,8 @@ function BankLedgerPage() {
     return map;
   }, [store.bankAccounts, store.transactions]);
 
-  const rows = useMemo(
+  /** ledger rows for the selected period and bank, before the category filter */
+  const ledgerRows = useMemo(
     () =>
       store.transactions
         .filter(
@@ -209,6 +211,28 @@ function BankLedgerPage() {
         )
         .sort(compareLedgerOrder),
     [store.transactions, from, to, bankFilter],
+  );
+
+  /** Category choices offered by the filter: every category label that actually
+   *  appears in the ledger for the selected period and bank. */
+  const categoryOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of ledgerRows)
+      seen.add(bankCategoryLabel(t.category, store.masters, t.customCategory));
+    const out = [...seen].sort((a, b) => a.localeCompare(b));
+    if (categoryFilter !== "all" && !seen.has(categoryFilter)) out.push(categoryFilter);
+    return out;
+  }, [ledgerRows, store.masters, categoryFilter]);
+
+  const rows = useMemo(
+    () =>
+      categoryFilter === "all"
+        ? ledgerRows
+        : ledgerRows.filter(
+            (t) =>
+              bankCategoryLabel(t.category, store.masters, t.customCategory) === categoryFilter,
+          ),
+    [ledgerRows, categoryFilter, store.masters],
   );
 
   const postedRows = rows;
@@ -334,6 +358,20 @@ function BankLedgerPage() {
             </SelectContent>
           </Select>
 
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger aria-label="Category filter" className="h-9 w-[176px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="all">All Categories</SelectItem>
+              {categoryOptions.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-9 border-gold text-navy">
@@ -399,7 +437,8 @@ function BankLedgerPage() {
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-navy">
-            {bankFilter === "all" ? "All Banks" : bankName(bankFilter)} · {formatDate(from)} –{" "}
+            {bankFilter === "all" ? "All Banks" : bankName(bankFilter)}
+            {categoryFilter === "all" ? "" : ` · ${categoryFilter}`} · {formatDate(from)} –{" "}
             {formatDate(to)}
           </h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -423,7 +462,9 @@ function BankLedgerPage() {
 
         {rows.length === 0 ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
-            No bank entries for the selected period and bank.
+            {categoryFilter === "all"
+              ? "No bank entries for the selected period and bank."
+              : "No bank entries for the selected period, bank and category."}
           </p>
         ) : (
           <>

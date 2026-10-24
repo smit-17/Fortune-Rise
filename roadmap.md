@@ -14,6 +14,9 @@
 ## Other Bank Ledger
 - [x] New sidebar section cloning Bank Ledger UI, fully isolated (own `otherBankAccounts`/`otherBankEntries` collections), Reference Only badges, manual-only entries, duplicate warning, filters/search/reports; verified entry never appears on Dashboard or Bank Ledger.
 
+## Bank Ledger
+- [x] Category filter added beside the Bank filter (2026-10-24): options are the category labels actually present in the ledger for the selected period and bank; row list, header totals and downloaded report follow it; nothing else changed. Verified live: 237 rows all-categories → Expense 47 / Payment Received 23 / Bank Transfer 10, zero mismatched rows, clears back to 237, no horizontal scroll at 390px.
+
 ## Working style (standing rule)
 - Never ask for approval or mention credit usage; complete work in one shot.
 
