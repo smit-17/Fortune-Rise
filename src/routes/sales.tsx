@@ -73,6 +73,7 @@ import { InvoicePdfDialog } from "@/components/lepdo/sales/InvoicePdfDialog";
 import { SaleForm } from "@/components/lepdo/sales/SaleForm";
 import { PaymentForm } from "@/components/lepdo/sales/PaymentForm";
 import { CustomerForm } from "@/components/lepdo/sales/CustomerForm";
+import { SalesReports } from "@/components/lepdo/sales/SalesReports";
 import { FormField, MODAL_CLASS, Panel, Row, Stat, StatusChip } from "@/components/lepdo/sales/ui";
 
 export const Route = createFileRoute("/sales")({
@@ -97,7 +98,7 @@ export const Route = createFileRoute("/sales")({
   component: SalesPage,
 });
 
-type Tab = "dashboard" | "invoices" | "customers" | "sellers" | "platforms";
+type Tab = "dashboard" | "invoices" | "customers" | "sellers" | "platforms" | "reports";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Sales Dashboard" },
@@ -105,6 +106,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "customers", label: "Customer-Wise" },
   { id: "sellers", label: "Seller-Wise" },
   { id: "platforms", label: "Platform-Wise" },
+  { id: "reports", label: "Reports" },
 ];
 
 function SalesPage() {
@@ -725,6 +727,8 @@ function SalesPage() {
           ))}
         </div>
       ) : null}
+
+      {tab === "reports" ? <SalesReports onOpenInvoice={setOpenInvoiceId} /> : null}
 
       <SaleForm
         open={formOpen}

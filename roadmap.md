@@ -1,5 +1,9 @@
 # LEPDO — open tasks
 
+## Sales Reports
+- [x] Add a read-only Reports tab beside Platform-Wise using existing live data, filters, comparisons, charts, customer/platform/payment/outstanding reports and Excel/PDF export.
+- [x] Verify live reports, exports, and preservation of existing Sales views: 25 active invoices total ₹60,89,535.22 matched the database; all 12 reports, platform/search filters, invoice drilldown, XLSX/PDF downloads and mobile overflow checked; no record writes.
+
 ## Dashboard update
 - [x] Apply selected Balance First presentation with a header total, preserving existing calculations.
 - [x] Verify the signed-in dashboard and period filter at desktop and narrow widths.

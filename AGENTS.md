@@ -11,3 +11,4 @@
 
 - Keep dashboard presentation helpers local to its content route and consume existing store totals without changing accounting logic; visual changes must not affect other pages.
 - Other Bank Ledger data lives in separate LepdoData collections (otherBankAccounts/otherBankEntries) managed via saveRecord/removeRecord; never merge them into transactions or any accounting query — the section is reference-only by design.
+- Sales Reports is an additive read-only tab backed by the shared live store and existing sales allocation model; keep report filters/exports isolated from existing views and distinguish invoice-date sales from payment-date receipts so reporting never changes accounting records.
