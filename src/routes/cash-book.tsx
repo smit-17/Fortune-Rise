@@ -3,7 +3,7 @@ import { EntryHistory, EntryRowMenu } from "@/components/lepdo/entry-bits";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowDownCircle, ArrowUpCircle, Download, MoreVertical, Plus, Wallet } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Download, MoreVertical, Plus, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +89,7 @@ function CashBookPage() {
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
@@ -151,6 +152,27 @@ function CashBookPage() {
   );
 
   const postedRows = rows;
+
+  /** Search filters only the displayed table; cards, totals and reports stay unchanged. */
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((t) =>
+      [
+        formatDate(t.date),
+        t.date,
+        cashLabel(t.category, store.masters, t.customCategory),
+        t.particulars,
+        t.reference ?? "",
+        formatMoney(t.amount),
+        String(t.amount),
+        formatMoney(balances.get(t.id) ?? 0),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [rows, search, store.masters, balances]);
 
   const openEdit = (t: Transaction) => {
     setEditing(t);
@@ -249,8 +271,6 @@ function CashBookPage() {
           <h1 className="hidden text-xl font-semibold tracking-tight text-navy lg:block lg:text-2xl">
             Cash Book
           </h1>
-          <span className="text-xs font-medium text-muted-foreground">{book.name} balance</span>
-          <span className="num text-xl font-semibold text-navy">{formatMoney(currentBalance)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={preset} onValueChange={(v) => setPreset(v as BankPreset)}>
@@ -285,6 +305,17 @@ function CashBookPage() {
               />
             </div>
           ) : null}
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              aria-label="Search entries"
+              placeholder="Search entries…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 w-[190px] pl-8 text-sm"
+            />
+          </div>
 
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger aria-label="Category filter" className="h-9 w-[170px] text-sm">
@@ -390,9 +421,11 @@ function CashBookPage() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
-            No cash entries for the selected period and category.
+            {search.trim()
+              ? "No cash entries match your search."
+              : "No cash entries for the selected period and category."}
           </p>
         ) : (
           <>
@@ -410,7 +443,7 @@ function CashBookPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((t) => (
+                  {visibleRows.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">
                         {formatDate(t.date)}
@@ -450,7 +483,7 @@ function CashBookPage() {
 
             {/* Mobile cards */}
             <ul className="divide-y divide-border lg:hidden">
-              {rows.map((t) => (
+              {visibleRows.map((t) => (
                 <li key={t.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">

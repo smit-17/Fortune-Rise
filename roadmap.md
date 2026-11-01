@@ -28,3 +28,6 @@
 - Sales sale-type summary cards + filter, seller incentive %, GST slabs/round-off in forms and PDF.
 - Goals Week tab, Persons master, Seller & Team incentives, Settings backup/restore/auto-logout/searchable audit log.
 - Decimal-safe inputs across Expense, Stock, Capital, Uchhina, Drawings, Cash Book, Bank Ledger, Goals, Settings.
+
+## Cash Book
+- [x] Removed header balance text next to title; added search box beside month filter (filters table only, all columns; cards/totals/reports unchanged) — verified live
