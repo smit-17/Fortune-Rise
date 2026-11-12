@@ -35,7 +35,7 @@ export function BankExcelImport({ open, onClose, initialBank }: { open: boolean;
   const destinations = [...banks.map(b => ({value:`bank:${b.id}`,label:b.nickname})),...store.cashLocations.filter(c=>c.active).map(c=>({value:`cash:${c.id}`,label:c.name}))];
   const locked = Object.values(outcomes).some(o => o.state === "pending" || o.state === "saved");
   const hasPending = Object.values(outcomes).some(o=>o.state==="pending");
-  const reset = () => { setExpanded(false); setFileName(""); setSheets({}); setSheet(""); setRaw([]); setRows([]); setSelected(new Set()); setOutcomes({}); setError(""); if(inputRef.current) inputRef.current.value=""; };
+  const reset = () => { setExpanded(false); setFileName(""); setSheets({}); setSheet(""); setHeaderRow(0); setRaw([]); setMapping({}); setRows([]); setSelected(new Set()); setOutcomes({}); setReviewed(new Set()); setRemoteRows([]); setError(""); setBankId(initialBank === "all" ? "" : initialBank); manualCategories.current.clear(); if(inputRef.current) inputRef.current.value=""; };
   const chooseSheet = (name: string, data = sheets) => {
     const grid = data[name] ?? []; const h = detectHeader(grid);
     setBankId(detectStatementBank([name,...grid.slice(0,Math.max(h,0)).flat()],currentStore.current.bankAccounts) ?? (initialBank === "all" ? "" : initialBank));
@@ -63,6 +63,7 @@ export function BankExcelImport({ open, onClose, initialBank }: { open: boolean;
     } catch(e) {setError(e instanceof Error ? e.message : "Unable to read this workbook.");}
     finally {setLoading(false);}
   };
+  useEffect(()=>{ if(open) reset(); },[open]);
   useEffect(()=>{
     if(!raw.length || locked) return;
     setRows(mapImportRows(raw,mapping,extraction,{bankId,banks:store.bankAccounts,parties:store.parties,categories,masters:store.masters,headerRow,transactions:store.transactions}));setSelected(new Set());setOutcomes({});setReviewed(new Set());
