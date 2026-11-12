@@ -48,6 +48,7 @@ export interface NewEntryInput {
   partyId: string | null;
   particulars: string;
   reference?: string | undefined;
+  statementClosingBalance?: number | undefined;
   paymentMethod?: string | undefined;
   notes?: string | undefined;
   attachmentName?: string | undefined;
@@ -565,6 +566,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
       partyId: input.partyId,
       particulars: input.particulars.trim(),
       reference: input.reference?.trim() || undefined,
+      statementClosingBalance: input.statementClosingBalance,
       paymentMethod: input.paymentMethod,
       notes: input.notes,
       attachmentName: input.attachmentName,
@@ -606,6 +608,7 @@ export function LepdoProvider({ children }: { children: ReactNode; userId?: stri
           transferGroupId: groupId,
           reference: ref,
           particulars: `${base.particulars} (transfer in)`,
+          statementClosingBalance: undefined,
         },
       ];
     }

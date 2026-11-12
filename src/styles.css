@@ -53,6 +53,7 @@
   --color-pl-profit: var(--pl-profit);
   --color-pl-loss: var(--pl-loss);
   --color-pl-grey: var(--pl-grey);
+  --color-pl-import-added: var(--pl-import-added);
   --color-sl-total: var(--sl-total);
   --color-sl-total-bg: var(--sl-total-bg);
   --color-sl-paid: var(--sl-paid);
@@ -211,6 +212,7 @@
   --pl-profit: #ddf5e7;
   --pl-loss: #fadadd;
   --pl-grey: #f4f5f7;
+  --pl-import-added: #e2f6e9;
 
   --sl-total: #2457a7;
   --sl-total-bg: #e8f1ff;

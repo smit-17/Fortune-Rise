@@ -265,6 +265,8 @@ export interface Transaction {
   particulars: string;
   reference?: string | undefined;
   paymentMethod?: string | undefined;
+  /** Imported statement balance after this transaction; reference metadata only. */
+  statementClosingBalance?: number | undefined;
   notes?: string | undefined;
   attachmentName?: string | undefined;
   transferGroupId?: string | undefined;

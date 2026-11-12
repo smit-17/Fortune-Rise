@@ -1,9 +1,10 @@
 import { isLedgerEntry } from "@/lib/lepdo/entry";
 import { EntryHistory, EntryRowMenu } from "@/components/lepdo/entry-bits";
+import { BankExcelImport } from "@/components/lepdo/BankExcelImport";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Download, Landmark, MoreVertical, Plus, Wallet } from "lucide-react";
+import { Download, FileSpreadsheet, Landmark, MoreVertical, Plus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -158,6 +159,7 @@ function BankLedgerPage() {
   const [bankFilter, setBankFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
@@ -372,6 +374,10 @@ function BankLedgerPage() {
             </SelectContent>
           </Select>
 
+          <Button variant="outline" className="h-9" onClick={() => setImportOpen(true)}>
+            <FileSpreadsheet className="size-4" /> Excel Import
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-9 border-gold text-navy">
@@ -397,6 +403,8 @@ function BankLedgerPage() {
           </Button>
         </div>
       </div>
+
+      <BankExcelImport open={importOpen} onClose={() => setImportOpen(false)} initialBank={bankFilter} />
 
       {/* Balance cards */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
