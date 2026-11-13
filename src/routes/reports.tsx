@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { isPosted } from "@/lib/lepdo/entry";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -37,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatMoney, round2, todayISO } from "@/lib/lepdo/format";
 import { partyName, useLepdo } from "@/lib/lepdo/store";
 import { PRESETS, type Preset } from "@/lib/lepdo/period";
-import { useShell } from "@/components/lepdo/shell-context";
+import { usePageSearch, useShell } from "@/components/lepdo/shell-context";
 import {
   STATUS_LABEL,
   buildSalesModel,
@@ -153,7 +154,8 @@ function ReportsPage() {
   const [accountFilter, setAccountFilter] = useState("all");
   const [partyFilter, setPartyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
-  const [search, setSearch] = useState("");
+  const search = shell.search;
+  const setSearch = shell.setSearch;
   const [viewKey, setViewKey] = useState<string | null>(null);
 
   const { from, to } = shell;
@@ -1149,14 +1151,6 @@ function FilterBar(props: {
 
   return (
     <div className="w-full max-w-full space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-      <div className="relative min-w-0 sm:hidden">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search…"
-          className="h-9 w-full text-xs"
-        />
-      </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
           <SelectTrigger aria-label="Date period" className="h-9 w-full text-xs sm:w-[150px]">
@@ -1252,12 +1246,6 @@ function FilterBar(props: {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search…"
-          className="hidden h-9 text-xs sm:block sm:w-[200px]"
-        />
       </div>
       {filtersActive || accountLabelOf || partyLabelOf ? (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -1356,7 +1344,8 @@ function ReportCentre({
 
 function ReportTable({ table }: { table: ExportTable }) {
   const paged = usePaged(table.rows, 25);
-  if (!table.rows.length) {
+  const searching = Boolean(usePageSearch().trim());
+  if (!table.rows.length && !searching) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
         No data for the selected filters.
@@ -1371,7 +1360,7 @@ function ReportTable({ table }: { table: ExportTable }) {
     return String(v);
   };
   return (
-    <div>
+    <SearchResults>
       {table.summary?.length ? (
         <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
           {table.summary.map((s) => (
@@ -1399,6 +1388,16 @@ function ReportTable({ table }: { table: ExportTable }) {
             </tr>
           </thead>
           <tbody>
+            {table.rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={table.columns.length}
+                  className="px-3 py-8 text-center text-sm text-muted-foreground"
+                >
+                  No matching results found.
+                </td>
+              </tr>
+            ) : null}
             {paged.slice.map((row, i) => (
               <tr key={i} className="border-t border-border">
                 {table.columns.map((c) => (
@@ -1457,7 +1456,7 @@ function ReportTable({ table }: { table: ExportTable }) {
         next={paged.next}
         prev={paged.prev}
       />
-    </div>
+    </SearchResults>
   );
 }
 

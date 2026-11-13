@@ -1,4 +1,5 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, usePageSearch } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -113,7 +114,7 @@ function OtherBankLedgerPage() {
   const [customTo, setCustomTo] = useState(today);
   useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [bankFilter, setBankFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
+  const search = usePageSearch();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OtherBankEntry | null>(null);
   const [viewing, setViewing] = useState<OtherBankEntry | null>(null);
@@ -164,7 +165,10 @@ function OtherBankLedgerPage() {
   const lastUpdatedOf = (accountId: string) => {
     const rows = entries.filter((t) => t.accountId === accountId && !t.voided);
     if (rows.length === 0) return null;
-    return rows.reduce((latest, t) => (t.updatedAt > latest ? t.updatedAt : latest), rows[0]!.updatedAt);
+    return rows.reduce(
+      (latest, t) => (t.updatedAt > latest ? t.updatedAt : latest),
+      rows[0]!.updatedAt,
+    );
   };
 
   const rows = useMemo(() => {
@@ -180,6 +184,7 @@ function OtherBankLedgerPage() {
             t.particulars.toLowerCase().includes(q) ||
             (t.reference ?? "").toLowerCase().includes(q) ||
             t.category.toLowerCase().includes(q) ||
+            String(t.amount).includes(q) ||
             bankName(t.accountId).toLowerCase().includes(q)),
       )
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
@@ -297,14 +302,6 @@ function OtherBankLedgerPage() {
             </SelectContent>
           </Select>
 
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search particulars, reference…"
-            aria-label="Search entries"
-            className="h-9 w-[200px] text-sm"
-          />
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-9 border-gold text-navy">
@@ -416,7 +413,10 @@ function OtherBankLedgerPage() {
       )}
 
       {/* Ledger */}
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <SearchResults
+        as="section"
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-navy">
             {bankFilter === "all" ? "All Banks" : bankName(bankFilter)} · {formatDate(from)} –{" "}
@@ -441,7 +441,7 @@ function OtherBankLedgerPage() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {rows.length === 0 && !search.trim() ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
             No entries for the selected period and bank.
           </p>
@@ -462,6 +462,16 @@ function OtherBankLedgerPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {rows.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">
@@ -569,7 +579,7 @@ function OtherBankLedgerPage() {
             </ul>
           </>
         )}
-      </section>
+      </SearchResults>
 
       <OtherBankEntryForm
         open={formOpen}

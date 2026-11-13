@@ -1,4 +1,5 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, usePageSearch } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry, isPosted } from "@/lib/lepdo/entry";
 import { useEffect, useMemo, useState } from "react";
@@ -136,6 +137,8 @@ function DrawingsPage() {
     [store.bankAccounts, store.cashLocations],
   );
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const rowsFor = (partyId: string) =>
     store.transactions
       .filter(
@@ -145,7 +148,11 @@ function DrawingsPage() {
           t.category === "owner_drawing" &&
           t.partyId === partyId &&
           t.date >= from &&
-          t.date <= to,
+          t.date <= to &&
+          (!q ||
+            `${t.particulars} ${t.drawingCategory ?? ""} ${t.reference ?? ""} ${t.code} ${t.amount}`
+              .toLowerCase()
+              .includes(q)),
       )
       .sort((a, b) =>
         a.date === b.date ? a.code.localeCompare(b.code) : b.date.localeCompare(a.date),
@@ -236,7 +243,8 @@ function DrawingsPage() {
       {DRAWING_ACCOUNTS.map((acc) => {
         const rows = rowsFor(acc.id);
         return (
-          <section
+          <SearchResults
+            as="section"
             key={acc.id}
             id={`table-${acc.id}`}
             className={cn(
@@ -251,7 +259,7 @@ function DrawingsPage() {
               </span>
             </div>
 
-            {rows.length === 0 ? (
+            {rows.length === 0 && !q ? (
               <p className="px-4 py-6 text-sm text-muted-foreground">
                 No drawings recorded for {acc.name} in this period.
               </p>
@@ -270,6 +278,16 @@ function DrawingsPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-3 py-8 text-center text-sm text-muted-foreground"
+                        >
+                          No matching results found.
+                        </td>
+                      </tr>
+                    ) : null}
                     {rows.map((t) => (
                       <tr key={t.id} className="border-t border-border">
                         <td className="whitespace-nowrap px-4 py-2 text-foreground">
@@ -331,7 +349,7 @@ function DrawingsPage() {
                 </ul>
               </>
             )}
-          </section>
+          </SearchResults>
         );
       })}
 

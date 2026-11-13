@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Banknote,
@@ -21,6 +21,7 @@ import {
   FileBarChart,
   WalletCards,
   LogOut,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     [],
   );
   const path = useRouterState({ select: (s) => s.location.pathname });
+  // Header search is page-scoped: clear it whenever the user navigates so
+  // each page searches only its own data and never inherits another page's query.
+  useEffect(() => {
+    setSearch("");
+  }, [path]);
   const current = NAV.find((n) => n.to === path);
   const visibleNav = NAV.filter((n) => can(pagePermission(n.to)));
   const allowedHere = can(pagePermission(path));
@@ -256,16 +262,30 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="hidden flex-1 lg:block" />
 
               {path === "/" ? null : (
-                <div className="hidden items-center gap-2 lg:flex">
-                  <div className="relative w-[220px]">
+                <>
+                  <div className="relative col-span-4 w-full lg:col-auto lg:w-[220px]">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Search transactions"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="h-9 pl-8"
+                      className="h-9 pl-8 pr-9"
                     />
+                    {search ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Clear search"
+                        title="Clear search"
+                        className="absolute right-1 top-1/2 size-7 -translate-y-1/2 text-muted-foreground"
+                        onClick={() => setSearch("")}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    ) : null}
                   </div>
+                  <div className="hidden items-center gap-2 lg:flex">
                   {path === "/uchhina" ? (
                     quickUchhina ? (
                       <Button className="h-9" onClick={quickUchhina}>
@@ -279,7 +299,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   ) : can("accounting.add") ? (
                     <QuickEntryMenu onPick={setDrawer} />
                   ) : null}
-                </div>
+                  </div>
+                </>
               )}
 
               <DropdownMenu>

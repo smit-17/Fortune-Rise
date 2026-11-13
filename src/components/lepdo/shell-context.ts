@@ -32,6 +32,16 @@ export function useShell(): ShellContextValue {
   return context;
 }
 
+/**
+ * Page-scoped header search. Returns the current header search text.
+ * The value is cleared automatically by AppShell whenever the route changes,
+ * so every page starts with an empty, independent search.
+ */
+export function usePageSearch(): string {
+  const ctx = useContext(ShellContext);
+  return ctx?.search ?? "";
+}
+
 /** One-way sync: header date filter -> page date filter, only after the header was changed. */
 export function useHeaderPeriodSync(
   setPreset: (preset: Preset) => void,

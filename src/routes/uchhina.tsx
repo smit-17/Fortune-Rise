@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -10,7 +11,6 @@ import {
   Pencil,
   Plus,
   Scale,
-  Search,
   Trash2,
   UserPlus,
   Wallet,
@@ -99,7 +99,7 @@ function UchhinaPage() {
   const shell = useShell();
   const { from, to, preset } = shell;
   const [person, setPerson] = useState("all");
-  const [search, setSearch] = useState("");
+  const search = shell.search;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<UchhinaRow | null>(null);
   const [deleting, setDeleting] = useState<UchhinaRow | null>(null);
@@ -223,17 +223,6 @@ function UchhinaPage() {
             </SelectContent>
           </Select>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              aria-label="Search person"
-              value={search}
-              placeholder="Search person"
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-[180px] pl-8 text-sm"
-            />
-          </div>
-
           <Button className="h-9" onClick={() => setFormOpen(true)}>
             <Plus className="size-4" /> Add Uchhina
           </Button>
@@ -276,7 +265,8 @@ function UchhinaPage() {
         Uchhina is recorded manually here — Add, edit or delete entries only from this section.
       </p>
 
-      {ledgers.length === 0 ? (
+      <SearchResults>
+        {ledgers.length === 0 && !search.trim() ? (
         <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
           No Uchhina entries yet. Use “Add Uchhina” above to record money given, received back,
           taken or returned for a person.
@@ -290,6 +280,7 @@ function UchhinaPage() {
           onDelete={setDeleting}
         />
       )}
+      </SearchResults>
 
       <UchhinaFormDialog
         open={formOpen || !!editing}
@@ -389,7 +380,7 @@ function PersonTable({
   onDelete: (row: UchhinaRow) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <SearchResults className="space-y-3">
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:block">
         <table className="w-full text-sm">
@@ -514,7 +505,7 @@ function PersonTable({
           );
         })}
       </div>
-    </div>
+    </SearchResults>
   );
 }
 

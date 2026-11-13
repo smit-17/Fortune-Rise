@@ -1,11 +1,12 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, usePageSearch } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry } from "@/lib/lepdo/entry";
 import { EntryHistory, EntryRowMenu } from "@/components/lepdo/entry-bits";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowDownCircle, ArrowUpCircle, Download, MoreVertical, Plus, Search, Wallet } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Download, MoreVertical, Plus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,7 +93,7 @@ function CashBookPage() {
   const [customTo, setCustomTo] = useState(today);
   useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
+  const search = usePageSearch();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
@@ -309,17 +310,6 @@ function CashBookPage() {
             </div>
           ) : null}
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              aria-label="Search entries"
-              placeholder="Search entries…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-[190px] pl-8 text-sm"
-            />
-          </div>
-
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger aria-label="Category filter" className="h-9 w-[170px] text-sm">
               <SelectValue />
@@ -399,7 +389,10 @@ function CashBookPage() {
       </div>
 
       {/* Ledger */}
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <SearchResults
+        as="section"
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-navy">
             {book.name} · {formatDate(from)} – {formatDate(to)}
@@ -424,7 +417,7 @@ function CashBookPage() {
           </div>
         </div>
 
-        {visibleRows.length === 0 ? (
+        {visibleRows.length === 0 && !search.trim() ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
             {search.trim()
               ? "No cash entries match your search."
@@ -446,6 +439,16 @@ function CashBookPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {visibleRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {visibleRows.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">
@@ -523,7 +526,7 @@ function CashBookPage() {
             </ul>
           </>
         )}
-      </section>
+      </SearchResults>
 
       <CashEntryForm
         open={formOpen}

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,10 +84,9 @@ export interface FilterBarProps {
   customTo?: string;
   onCustomFrom?: (v: string) => void;
   onCustomTo?: (v: string) => void;
-  /** search */
+  /** search (header search value; shown only as a removable chip) */
   search: string;
   onSearch: (v: string) => void;
-  searchPlaceholder: string;
   /** sort */
   sort: SortId;
   onSort: (v: SortId) => void;
@@ -175,16 +174,6 @@ export function FilterBar(props: FilterBarProps) {
             />
           </div>
         ) : null}
-
-        <div className="relative min-w-0 flex-1 basis-full sm:basis-52">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-9 pl-8 text-sm"
-            placeholder={props.searchPlaceholder}
-            value={props.search}
-            onChange={(e) => props.onSearch(e.target.value)}
-          />
-        </div>
 
         <Select value={props.sort} onValueChange={(v) => props.onSort(v as SortId)}>
           <SelectTrigger aria-label="Sort by" className="h-9 w-[184px] text-sm">

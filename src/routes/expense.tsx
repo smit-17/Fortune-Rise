@@ -1,4 +1,5 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, useShell } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry, isPosted } from "@/lib/lepdo/entry";
 import { useEffect, useMemo, useState } from "react";
@@ -124,6 +125,7 @@ const emptyForm = (): FormState => ({
 
 function ExpensePage() {
   const store = useLepdo();
+  const shell = useShell();
   const navigate = useNavigate();
   const today = todayISO();
   const [preset, setPreset] = useState<BankPreset>("month");
@@ -132,7 +134,7 @@ function ExpensePage() {
   useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const search = shell.search;
   const [statusFilter, setStatusFilter] = useState("all");
   const [expSort, setExpSort] = useState<SortId>("date_desc");
   const [expMin, setExpMin] = useState("");
@@ -292,7 +294,7 @@ function ExpensePage() {
     setStatusFilter("all");
     setExpMin("");
     setExpMax("");
-    setSearch("");
+    shell.setSearch("");
   }
 
   const cards = useMemo(() => {
@@ -459,8 +461,7 @@ function ExpensePage() {
         onCustomFrom={setCustomFrom}
         onCustomTo={setCustomTo}
         search={search}
-        onSearch={setSearch}
-        searchPlaceholder="Search particulars, reference or head"
+        onSearch={shell.setSearch}
         sort={expSort}
         onSort={setExpSort}
         filters={expFilterDefs}
@@ -478,7 +479,10 @@ function ExpensePage() {
       />
 
       {/* Ledger */}
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <SearchResults
+        as="section"
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-navy">
             {formatDate(from)} – {formatDate(to)} · {rows.length}{" "}
@@ -502,7 +506,7 @@ function ExpensePage() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {rows.length === 0 && !search.trim() ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
             No expenses for the selected filters.
           </p>
@@ -522,6 +526,16 @@ function ExpensePage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {rows.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">
@@ -649,7 +663,7 @@ function ExpensePage() {
             </ul>
           </>
         )}
-      </section>
+      </SearchResults>
 
       <ExpenseForm
         open={formOpen}

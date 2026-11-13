@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +67,7 @@ export function Panel({
         <h2 className="text-sm font-semibold text-navy">{title}</h2>
         {action}
       </header>
-      <div className="p-2 lg:p-3">{children}</div>
+      <SearchResults className="p-2 lg:p-3">{children}</SearchResults>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { isPosted } from "@/lib/lepdo/entry";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeading } from "@/components/lepdo/bits";
 import { NumInput, MoneyInput } from "@/components/lepdo/numeric";
-import { useShell } from "@/components/lepdo/shell-context";
+import { usePageSearch, useShell } from "@/components/lepdo/shell-context";
 import { useLepdo } from "@/lib/lepdo/store";
 import type { NewEntryInput } from "@/lib/lepdo/store";
 import type { TeamMember, TeamPayment, TeamPaymentType } from "@/lib/lepdo/types";
@@ -193,7 +194,10 @@ function SellerPerformance() {
 
   const payments = store.teamPayments.filter((p) => !p.voided && p.type === "incentive" && p.paid);
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const rows: SellerRow[] = [...groups.entries()]
+    .filter(([name]) => !q || name.toLowerCase().includes(q))
     .map(([name, g]) => {
       const seller = store.sellers.find((s) => s.name.trim().toLowerCase() === name.toLowerCase());
       const paid = round2(
@@ -274,13 +278,13 @@ function SellerPerformance() {
 
   return (
     <div className="space-y-4">
-      {rows.length === 0 ? (
+      {rows.length === 0 && !q ? (
         <EmptyState
           title="No seller-tagged invoices yet"
           hint="Add a sale with a seller name to see performance here."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <SearchResults className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((r) => (
             <SectionCard
               key={r.name}
@@ -304,10 +308,11 @@ function SellerPerformance() {
               </div>
             </SectionCard>
           ))}
-        </div>
+        </SearchResults>
       )}
 
       <SectionCard
+        preserveSearchHeight
         title="Seller Summary"
         actions={<DownloadMenu build={buildExport} label="Download" />}
       >
@@ -451,9 +456,17 @@ function TeamSalary() {
   if (!store.ready) return <EmptyState title="Loading team data…" />;
 
   const members = store.teamMembers;
+  const q = usePageSearch().trim().toLowerCase();
   // Deleted payments are excluded everywhere — they never appear or count.
   const periodPayments = store.teamPayments.filter(
-    (p) => !p.voided && p.date >= shell.from && p.date <= shell.to,
+    (p) =>
+      !p.voided &&
+      p.date >= shell.from &&
+      p.date <= shell.to &&
+      (!q ||
+        `${members.find((m) => m.id === p.memberId)?.name ?? ""} ${teamTypeLabel(p.type)} ${p.month} ${p.particulars} ${p.amount} ${p.paidFrom ?? ""}`
+          .toLowerCase()
+          .includes(q)),
   );
 
   function memberName(id: string) {
@@ -581,8 +594,12 @@ function TeamSalary() {
         </div>
       )}
 
-      <SectionCard title="Payments" actions={<DownloadMenu build={buildExport} label="Download" />}>
-        {periodPayments.length === 0 ? (
+      <SectionCard
+        preserveSearchHeight
+        title="Payments"
+        actions={<DownloadMenu build={buildExport} label="Download" />}
+      >
+        {periodPayments.length === 0 && !q ? (
           <EmptyState title="No payments in this period" />
         ) : (
           <>
@@ -602,6 +619,16 @@ function TeamSalary() {
                   </tr>
                 </thead>
                 <tbody>
+                  {periodPayments.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {paged.slice.map((p) => (
                     <tr
                       key={p.id}

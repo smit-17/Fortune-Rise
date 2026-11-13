@@ -35,7 +35,7 @@ import {
   Pager,
 } from "@/components/lepdo/shared";
 import { useLepdo } from "@/lib/lepdo/store";
-import { useShell } from "@/components/lepdo/shell-context";
+import { usePageSearch, useShell } from "@/components/lepdo/shell-context";
 import { round2 } from "@/lib/lepdo/format";
 import { MoneyInput, NumInput, toNum } from "@/components/lepdo/numeric";
 import { formatDate, formatMoney, todayISO } from "@/lib/lepdo/format";
@@ -262,7 +262,12 @@ function balanceBeforeEntry(
   const chronological = [...withoutTarget.filter((e) => e.stock === stock && !e.voided), ...[]];
   let balance = 0;
   const merged = [
-    ...chronological.map((e) => ({ date: e.date, id: e.id, qtyIn: e.qtyIn ?? 0, qtyOut: e.qtyOut ?? 0 })),
+    ...chronological.map((e) => ({
+      date: e.date,
+      id: e.id,
+      qtyIn: e.qtyIn ?? 0,
+      qtyOut: e.qtyOut ?? 0,
+    })),
     ...auto
       .filter((r) => r.stock === stock)
       .map((r) => ({ date: r.date, id: r.id, qtyIn: r.qtyIn, qtyOut: r.qtyOut })),
@@ -409,9 +414,20 @@ function StockPanel({
 
   const { avgRate, totalQty, totalValue } = useMemo(() => avgRateOf(allRows), [allRows]);
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const periodRows = useMemo(
-    () => allRows.filter((r) => r.date >= from && r.date <= to),
-    [allRows, from, to],
+    () =>
+      allRows.filter(
+        (r) =>
+          r.date >= from &&
+          r.date <= to &&
+          (!q ||
+            `${r.description ?? ""} ${r.category ?? ""} ${r.karat ?? ""} ${r.colour ?? ""} ${r.value ?? ""}`
+              .toLowerCase()
+              .includes(q)),
+      ),
+    [allRows, from, to, q],
   );
 
   const paged = usePaged(periodRows, 25);
@@ -492,6 +508,7 @@ function StockPanel({
       </div>
 
       <SectionCard
+        preserveSearchHeight
         title={`${kind === "diamond" ? "Diamond" : "Gold"} Stock Ledger`}
         actions={
           <div className="flex items-center gap-2">
@@ -502,7 +519,7 @@ function StockPanel({
           </div>
         }
       >
-        {periodRows.length === 0 ? (
+        {periodRows.length === 0 && !q ? (
           <EmptyState
             title="No stock movements in this period"
             hint="Adjust the header date range or add a manual adjustment."
@@ -540,6 +557,16 @@ function StockPanel({
                   </tr>
                 </thead>
                 <tbody>
+                  {periodRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={kind === "diamond" ? 9 : 10}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {paged.slice.map((r) => (
                     <tr key={r.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">

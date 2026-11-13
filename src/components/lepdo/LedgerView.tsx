@@ -1,5 +1,6 @@
 import { isPosted } from "@/lib/lepdo/entry";
 import { useMemo, useState } from "react";
+import { SearchResults } from "./SearchResults";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -60,7 +61,6 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
-  const [localSearch, setLocalSearch] = useState("");
   const [viewing, setViewing] = useState<Transaction | null>(null);
   const [voidTarget, setVoidTarget] = useState<Transaction | null>(null);
 
@@ -84,7 +84,7 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
     });
   }, [store.transactions, accounts, sourceType]);
 
-  const search = (shell.search || localSearch).toLowerCase().trim();
+  const search = shell.search.toLowerCase().trim();
 
   const filtered = useMemo(() => {
     return rowsWithBalance
@@ -102,11 +102,19 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
       .filter((t) => statusFilter === "all" || statusOf(t).toLowerCase() === statusFilter)
       .filter((t) => (minAmount ? t.amount >= Number(minAmount) : true))
       .filter((t) => (maxAmount ? t.amount <= Number(maxAmount) : true))
-      .filter((t) =>
-        search
-          ? `${t.particulars} ${t.reference ?? ""} ${t.code}`.toLowerCase().includes(search)
-          : true,
-      )
+      .filter((t) => {
+        if (!search) return true;
+        const acc = accounts.find((a) => a.id === t.accountId);
+        const accName = acc
+          ? "bankName" in acc
+            ? `${acc.bankName} ${acc.nickname}`
+            : (acc as { name: string }).name
+          : "";
+        const cat = CATEGORIES.find((c) => c.id === t.category)?.label ?? "";
+        return `${t.particulars} ${t.reference ?? ""} ${t.code} ${partyName(store.parties, t.partyId)} ${accName} ${cat} ${t.amount}`
+          .toLowerCase()
+          .includes(search);
+      })
       .reverse();
   }, [
     rowsWithBalance,
@@ -144,7 +152,6 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
     setStatusFilter("all");
     setMinAmount("");
     setMaxAmount("");
-    setLocalSearch("");
     shell.setSearch("");
   }
 
@@ -221,7 +228,7 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <FilterSelect
             label={isBank ? "Bank account" : "Cash location"}
             value={accountFilter}
@@ -294,16 +301,6 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
               className="h-9"
             />
           </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-              Search particulars / reference
-            </p>
-            <Input
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="h-9"
-            />
-          </div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
@@ -315,7 +312,7 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <SearchResults className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <Table className="min-w-[1180px]">
             <TableHeader>
@@ -419,7 +416,7 @@ export function LedgerView({ sourceType }: { sourceType: SourceType }) {
             </TableBody>
           </Table>
         </div>
-      </div>
+      </SearchResults>
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent>

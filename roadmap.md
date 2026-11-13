@@ -47,3 +47,8 @@
 
 ## Cash Book
 - [x] Removed header balance text next to title; added search box beside month filter (filters table only, all columns; cards/totals/reports unchanged) — verified live
+
+## Header search
+- [x] Add the header clear icon and preserve searchable result frames, including headers and blank space. Verified signed-in clearing and restored rows across pages, single-result P&L, Invoice-Wise Sales/Purchase, EMI, liabilities and team views, mobile clear behavior, 51 regression tests and clean preview; no records written or filtering logic changed.
+- [x] Header search functional on every page, scoped to the active page and cleared on navigation; duplicate page-level search boxes removed (Bank Ledger, Cash Book, Other Bank Ledger, Expense, Sales, Purchase, Uchhina, Reports); search added to P&L, Drawings, Capital & Liabilities, Stock, Seller & Team and Goals lists; "No matching results found." empty states; header search also visible on mobile.
+- [x] Verified signed-in: Bank Ledger 127→77 rows on "hdfc", 0 + empty message on nonsense, restored on clear; Expense 56→0; Sales 11→0; P&L lines filter to 3 on "profit"; search cleared when navigating pages; no console errors on any page.

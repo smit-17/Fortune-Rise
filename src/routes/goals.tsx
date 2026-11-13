@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeading } from "@/components/lepdo/bits";
+import { usePageSearch } from "@/components/lepdo/shell-context";
 import {
   Chip,
   DownloadMenu,
@@ -155,13 +157,16 @@ function GoalsPanel({ period }: { period: Period }) {
     );
   }
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const cards: CardSpec[] = useMemo(
-    () => [
-      { scope: "overall", target: "overall", label: "Overall Sales Goal" },
-      ...sellerNames.map((n) => ({ scope: "seller" as Scope, target: n, label: n })),
-      ...platformNames.map((n) => ({ scope: "platform" as Scope, target: n, label: n })),
-    ],
-    [sellerNames, platformNames],
+    () =>
+      [
+        { scope: "overall" as Scope, target: "overall", label: "Overall Sales Goal" },
+        ...sellerNames.map((n) => ({ scope: "seller" as Scope, target: n, label: n })),
+        ...platformNames.map((n) => ({ scope: "platform" as Scope, target: n, label: n })),
+      ].filter((c) => !q || c.label.toLowerCase().includes(q)),
+    [sellerNames, platformNames, q],
   );
 
   const periodGoals = store.goals.filter((g) => g.period === period && g.periodKey === periodKey);
@@ -326,6 +331,7 @@ function GoalsPanel({ period }: { period: Period }) {
 
       {periodGoals.length > 0 ? (
         <SectionCard
+          preserveSearchHeight
           title="Goals Table"
           actions={<DownloadMenu build={buildTable} label="Download" />}
         >
@@ -360,11 +366,12 @@ function GoalGroup({
   onEdit: (spec: CardSpec) => void;
   deadline?: string;
 }) {
-  if (cards.length === 0) return null;
+  const searching = Boolean(usePageSearch().trim());
+  if (cards.length === 0 && !searching) return null;
   const today = todayISO();
   return (
     <SectionCard title={title}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <SearchResults className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => {
           const goal = goalOf(c.scope, c.target);
           const achieved = achievedOf(c.scope, c.target);
@@ -419,7 +426,7 @@ function GoalGroup({
             </div>
           );
         })}
-      </div>
+      </SearchResults>
     </SectionCard>
   );
 }

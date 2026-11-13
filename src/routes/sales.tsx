@@ -8,7 +8,6 @@ import {
   IndianRupee,
   Plus,
   Receipt,
-  Search,
   TrendingUp,
   Users,
   Wallet,
@@ -50,7 +49,7 @@ import {
   type SelectFilterDef,
   type SortId,
 } from "@/components/lepdo/FilterBar";
-import { useShell } from "@/components/lepdo/shell-context";
+import { usePageSearch, useShell } from "@/components/lepdo/shell-context";
 import {
   STATUS_CLASS,
   STATUS_LABEL,
@@ -113,7 +112,7 @@ function SalesPage() {
   const store = useLepdo();
   const shell = useShell();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [search, setSearch] = useState("");
+  const search = shell.search;
   const [formOpen, setFormOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentCustomer, setPaymentCustomer] = useState<string | null>(null);
@@ -132,7 +131,6 @@ function SalesPage() {
   const [invPreset, setInvPreset] = useState("header");
   const [invFrom, setInvFrom] = useState(today);
   const [invTo, setInvTo] = useState(today);
-  const [invSearch, setInvSearch] = useState("");
   const [invMin, setInvMin] = useState("");
   const [invMax, setInvMax] = useState("");
   const [invFilters, setInvFilters] = useState<Record<string, string>>({
@@ -291,7 +289,7 @@ function SalesPage() {
   );
 
   const invoiceRows = useMemo(() => {
-    const iq = invSearch.trim().toLowerCase();
+    const iq = search.trim().toLowerCase();
     const list = model.invoices.filter((v) => {
       const inv = v.invoice;
       if (inv.date < iFrom || inv.date > iTo) return false;
@@ -319,7 +317,7 @@ function SalesPage() {
       amount: (v) => v.invoice.total,
       updated: (v) => v.invoice.updatedAt ?? v.invoice.date,
     });
-  }, [model.invoices, iFrom, iTo, invFilters, invMin, invMax, invSearch, invSort]);
+  }, [model.invoices, iFrom, iTo, invFilters, invMin, invMax, search, invSort]);
 
   function clearInvFilters() {
     setInvFilters({
@@ -331,7 +329,7 @@ function SalesPage() {
     });
     setInvMin("");
     setInvMax("");
-    setInvSearch("");
+    shell.setSearch("");
   }
 
   const invDateOptions = useMemo(
@@ -397,15 +395,6 @@ function SalesPage() {
       </div>
 
       <div className="space-y-2 rounded-xl border border-border bg-card p-2">
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-9 w-full pl-9"
-            placeholder="Search date, invoice, customer, seller, platform, amount, status, UTR"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Button
             className="h-9"
@@ -613,9 +602,8 @@ function SalesPage() {
             customTo={invTo}
             onCustomFrom={setInvFrom}
             onCustomTo={setInvTo}
-            search={invSearch}
-            onSearch={setInvSearch}
-            searchPlaceholder="Search invoice number or customer"
+            search={search}
+            onSearch={shell.setSearch}
             sort={invSort}
             onSort={setInvSort}
             filters={invFilterDefs}
@@ -823,7 +811,8 @@ function InvoiceTable({
   onPreviewPdf?: (id: string) => void;
   onVoid?: (view: InvoiceView) => void;
 }) {
-  if (!rows.length)
+  const searching = Boolean(usePageSearch().trim());
+  if (!rows.length && !searching)
     return (
       <p className="px-2 py-6 text-center text-sm text-muted-foreground">
         No invoices for the selected filters.
@@ -847,6 +836,13 @@ function InvoiceTable({
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  No matching results found.
+                </td>
+              </tr>
+            ) : null}
             {rows.map((v) => (
               <tr
                 key={v.invoice.id}
@@ -940,7 +936,8 @@ function InvoiceTable({
 }
 
 function CustomerTable({ rows, onOpen }: { rows: CustomerView[]; onOpen: (id: string) => void }) {
-  if (!rows.length)
+  const searching = Boolean(usePageSearch().trim());
+  if (!rows.length && !searching)
     return (
       <p className="px-2 py-6 text-center text-sm text-muted-foreground">
         No customers for the selected filters.
@@ -962,6 +959,13 @@ function CustomerTable({ rows, onOpen }: { rows: CustomerView[]; onOpen: (id: st
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  No matching results found.
+                </td>
+              </tr>
+            ) : null}
             {rows.map((c) => (
               <tr
                 key={c.party.id}

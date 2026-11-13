@@ -1,4 +1,5 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, usePageSearch } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isPosted } from "@/lib/lepdo/entry";
 import { useMemo, useState, type ReactNode } from "react";
@@ -12,16 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime, formatMoney, round2, todayISO } from "@/lib/lepdo/format";
 import { useLepdo } from "@/lib/lepdo/store";
-import { PRESETS as PL_PRESETS, rangeFor as plRange, type Preset as PLPreset } from "@/lib/lepdo/period";
+import {
+  PRESETS as PL_PRESETS,
+  rangeFor as plRange,
+  type Preset as PLPreset,
+} from "@/lib/lepdo/period";
 
 export const Route = createFileRoute("/pl")({
   head: () => ({
@@ -52,6 +52,8 @@ export default function ProfitLoss() {
   const [customTo, setCustomTo] = useState(today);
   useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [from, to] = plRange(preset, today, customFrom, customTo);
+  const q = usePageSearch().trim().toLowerCase();
+  const showLine = (label: string) => !q || label.toLowerCase().includes(q);
 
   const inRange = (date: string) => date >= from && date <= to;
 
@@ -78,8 +80,9 @@ export default function ProfitLoss() {
     );
 
     // Net interest: interest paid out less interest received, from the "interest" category.
-    const interest = sumOf(live.filter((t) => t.category === "interest"), (t) =>
-      t.direction === "out" ? t.amount : -t.amount,
+    const interest = sumOf(
+      live.filter((t) => t.category === "interest"),
+      (t) => (t.direction === "out" ? t.amount : -t.amount),
     );
 
     // No depreciation / tax source in the ledger yet — shown as zero until a category exists.
@@ -163,7 +166,10 @@ export default function ProfitLoss() {
       </div>
 
       <TooltipProvider delayDuration={150}>
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <SearchResults
+          as="section"
+          className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+        >
           <table className="w-full table-fixed border-collapse text-sm">
             <colgroup>
               <col />
@@ -184,17 +190,24 @@ export default function ProfitLoss() {
               </tr>
             </thead>
             <tbody>
+              {showLine("Sales Revenue") ? (
               <Row label="Sales Revenue" amount={model.salesRevenue} pct={pct(model.salesRevenue)} bg="bg-pl-green" bold />
+              ) : null}
 
+              {showLine("Cost of Goods Sold") ? (
               <Row label="Cost of Goods Sold" amount={model.cogs} pct={pct(model.cogs)} bg="bg-pl-orange" bold />
+              ) : null}
 
+              {showLine("Gross Profit / Loss") ? (
               <TotalRow
                 label="Gross Profit / Loss"
                 amount={model.grossProfit}
                 pct={pct(model.grossProfit)}
                 info="Sales Revenue minus Cost of Goods Sold — profit from core trading before any overheads."
               />
+              ) : null}
 
+              {showLine("Operating Expenses") ? (
               <Row
                 label="Operating Expenses"
                 amount={model.operatingExpenses}
@@ -202,14 +215,18 @@ export default function ProfitLoss() {
                 bg="bg-pl-red"
                 bold
               />
+              ) : null}
 
+              {showLine("EBITDA") ? (
               <TotalRow
                 label="EBITDA"
                 amount={model.ebitda}
                 pct={pct(model.ebitda)}
                 info="Earnings Before Interest, Tax, Depreciation & Amortization — Gross Profit minus Operating Expenses. Shows core operating performance."
               />
+              ) : null}
 
+              {showLine("Depreciation & Amortization") ? (
               <Row
                 label="Depreciation & Amortization"
                 amount={model.depreciation}
@@ -218,29 +235,61 @@ export default function ProfitLoss() {
                 bold
                 info="The gradual write-down of the value of fixed assets (depreciation) and intangible assets (amortization) over their useful life."
               />
+              ) : null}
 
+              {showLine("EBIT") ? (
               <TotalRow
                 label="EBIT"
                 amount={model.ebit}
                 pct={pct(model.ebit)}
                 info="Earnings Before Interest & Tax — EBITDA minus Depreciation & Amortization."
               />
+              ) : null}
 
+              {showLine("Interest") ? (
               <Row label="Interest" amount={model.interest} pct={pct(model.interest)} bg="bg-pl-blue" bold />
+              ) : null}
 
+              {showLine("Profit Before Tax") ? (
               <TotalRow
                 label="Profit Before Tax"
                 amount={model.pbt}
                 pct={pct(model.pbt)}
                 info="EBIT minus Interest — profit earned before accounting for income tax."
               />
+              ) : null}
 
+              {showLine("Tax") ? (
               <Row label="Tax" amount={model.tax} pct={pct(model.tax)} bg="bg-pl-yellow" bold />
+              ) : null}
 
+              {showLine("Net Profit / Loss") ? (
               <TotalRow label="Net Profit / Loss" amount={model.net} pct={pct(model.net)} emphasis />
+              ) : null}
+
+              {q &&
+              ![
+                "Sales Revenue",
+                "Cost of Goods Sold",
+                "Gross Profit / Loss",
+                "Operating Expenses",
+                "EBITDA",
+                "Depreciation & Amortization",
+                "EBIT",
+                "Interest",
+                "Profit Before Tax",
+                "Tax",
+                "Net Profit / Loss",
+              ].some((l) => l.toLowerCase().includes(q)) ? (
+                <tr>
+                  <td colSpan={3} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    No matching results found.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
-        </section>
+        </SearchResults>
       </TooltipProvider>
 
       <p className="text-xs text-muted-foreground">

@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -41,7 +42,7 @@ import { formatDate, formatDateTime, formatMoney, round2, todayISO } from "@/lib
 import { MoneyInput, NumInput, toNum } from "@/components/lepdo/numeric";
 import { useLepdo, partyName, type NewEntryInput } from "@/lib/lepdo/store";
 import { DRAWING_ACCOUNTS, DRAWING_PARTIES } from "@/lib/lepdo/drawings";
-import { useShell } from "@/components/lepdo/shell-context";
+import { usePageSearch, useShell } from "@/components/lepdo/shell-context";
 import { PageHeading } from "@/components/lepdo/bits";
 import {
   StatCard,
@@ -236,7 +237,9 @@ function CapitalTab() {
     }
     let partyId = form.partyId;
     if (partyId === MANUAL_PARTY) {
-      const match = partyOptions.find((p) => p.name.trim().toLowerCase() === manualName.toLowerCase());
+      const match = partyOptions.find(
+        (p) => p.name.trim().toLowerCase() === manualName.toLowerCase(),
+      );
       partyId = match ? match.id : store.addParty(manualName, "founder").id;
     }
     const input: NewEntryInput = {
@@ -277,14 +280,23 @@ function CapitalTab() {
 
   const totalInvested = useMemo(() => buckets.reduce((s, b) => s + b.invested, 0), [buckets]);
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const withBalance = useMemo(
     () =>
       buckets
         .flatMap((b) => b.rows.map((t) => ({ ...t, bucketLabel: b.label })))
+        .filter(
+          (t) =>
+            !q ||
+            `${t.bucketLabel} ${t.particulars} ${t.reference ?? ""} ${t.code} ${t.amount}`
+              .toLowerCase()
+              .includes(q),
+        )
         .sort((a, b) =>
           a.date === b.date ? a.code.localeCompare(b.code) : b.date.localeCompare(a.date),
         ),
-    [buckets],
+    [buckets, q],
   );
 
   const paged = usePaged(withBalance, 25);
@@ -346,6 +358,7 @@ function CapitalTab() {
       </div>
 
       <SectionCard
+        preserveSearchHeight
         title="Capital & Investment Entries"
         actions={
           <div className="flex flex-wrap gap-2">
@@ -356,7 +369,7 @@ function CapitalTab() {
           </div>
         }
       >
-        {withBalance.length === 0 ? (
+        {withBalance.length === 0 && !q ? (
           <EmptyState
             title="No investment entries yet"
             hint="Use Add Capital Entry to record a capital or investment entry here."
@@ -375,6 +388,16 @@ function CapitalTab() {
                   </tr>
                 </thead>
                 <tbody>
+                  {withBalance.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {paged.slice.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2">{formatDate(t.date)}</td>
@@ -652,6 +675,8 @@ function LiabilitiesTab() {
     items: views.filter((v) => v.liability.kind === k.id),
   })).filter((g) => g.items.length > 0);
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const allRows = useMemo(() => {
     const rows: (LiabilityEntry & { balance: number; paid: number; liabName: string })[] = [];
     for (const v of views) {
@@ -665,12 +690,16 @@ function LiabilitiesTab() {
           !r.voided &&
           (filterId === "all" || r.liabilityId === filterId) &&
           r.date >= from &&
-          r.date <= to,
+          r.date <= to &&
+          (!q ||
+            `${r.liabName} ${r.particulars} ${liabilityTypeLabel(r.type)} ${r.principal} ${r.interest} ${r.paid} ${r.balance}`
+              .toLowerCase()
+              .includes(q)),
       )
       .sort((a, b) =>
         a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : b.date.localeCompare(a.date),
       );
-  }, [views, filterId, from, to]);
+  }, [views, filterId, from, to, q]);
 
   const paged = usePaged(allRows, 25);
 
@@ -759,6 +788,7 @@ function LiabilitiesTab() {
       )}
 
       <SectionCard
+        preserveSearchHeight
         title="Liability Ledger"
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -779,7 +809,7 @@ function LiabilitiesTab() {
           </div>
         }
       >
-        {allRows.length === 0 ? (
+        {allRows.length === 0 && !q ? (
           <EmptyState title="No entries in the selected period." />
         ) : (
           <>
@@ -799,6 +829,16 @@ function LiabilitiesTab() {
                   </tr>
                 </thead>
                 <tbody>
+                  {allRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {paged.slice.map((r) => (
                     <tr
                       key={r.id}
@@ -1523,18 +1563,29 @@ function EmiTab() {
   const [deletingPlan, setDeletingPlan] = useState<EmiPlan | null>(null);
 
   const plans = store.emiPlans;
+  const q = usePageSearch().trim().toLowerCase();
+  const matchesPlan = (p: EmiPlan) =>
+    !q ||
+    `${p.name} ${p.lender ?? ""} ${p.loanType ?? ""} ${p.reference ?? ""} ${p.notes ?? ""} ${p.amount}`
+      .toLowerCase()
+      .includes(q);
   // Ordered by the saved debit day, then by title. No upcoming-date calculation.
   const activePlans = useMemo(
     () =>
       plans
-        .filter((p) => !p.closed)
+        .filter((p) => !p.closed && matchesPlan(p))
         .sort((a, b) => {
           if (a.dueDay !== b.dueDay) return a.dueDay - b.dueDay;
           return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
         }),
-    [plans],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plans, q],
   );
-  const closedPlans = useMemo(() => plans.filter((p) => p.closed), [plans]);
+  const closedPlans = useMemo(
+    () => plans.filter((p) => p.closed && matchesPlan(p)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plans, q],
+  );
   /** Sum of EMI amounts from active records only; closed loans are excluded. */
   const totalActiveEmi = useMemo(
     () => round2(activePlans.reduce((s, p) => s + (p.amount || 0), 0)),
@@ -1606,10 +1657,13 @@ function EmiTab() {
         </Button>
       </div>
 
-      {activePlans.length === 0 && closedPlans.length === 0 ? (
-        <EmptyState title="No EMI plans yet" hint="Add an EMI plan to get monthly payment reminders." />
+      {activePlans.length === 0 && closedPlans.length === 0 && !q ? (
+        <EmptyState
+          title="No EMI plans yet"
+          hint="Add an EMI plan to get monthly payment reminders."
+        />
       ) : (
-        <div
+        <SearchResults
           className="grid gap-4"
           style={{
             gridTemplateColumns:
@@ -1629,11 +1683,11 @@ function EmiTab() {
               onDelete={() => setDeletingPlan(p)}
             />
           ))}
-        </div>
+        </SearchResults>
       )}
 
       {closedPlans.length > 0 ? (
-        <SectionCard title="Closed Loans">
+        <SectionCard preserveSearchHeight title="Closed Loans">
           <ul className="divide-y divide-border text-sm">
             {closedPlans.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">

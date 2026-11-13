@@ -1,3 +1,4 @@
+import { SearchResults } from "@/components/lepdo/SearchResults";
 import { useId, useState, type ReactNode } from "react";
 import {
   Check,
@@ -127,7 +128,9 @@ export function SectionCard({
   actions,
   children,
   className,
+  preserveSearchHeight = false,
 }: {
+  preserveSearchHeight?: boolean;
   title?: string | undefined;
   actions?: ReactNode | undefined;
   children: ReactNode;
@@ -141,7 +144,7 @@ export function SectionCard({
           {actions}
         </div>
       ) : null}
-      {children}
+      {preserveSearchHeight ? <SearchResults>{children}</SearchResults> : children}
     </section>
   );
 }

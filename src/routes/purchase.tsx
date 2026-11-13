@@ -6,7 +6,6 @@ import {
   FileText,
   HandCoins,
   Plus,
-  Search,
   ShoppingCart,
   Truck,
   Users,
@@ -91,7 +90,7 @@ function PurchasePage() {
   const store = useLepdo();
   const shell = useShell();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [search, setSearch] = useState("");
+  const search = shell.search;
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
@@ -109,7 +108,6 @@ function PurchasePage() {
   const [billPreset, setBillPreset] = useState("header");
   const [billFrom, setBillFrom] = useState(today);
   const [billTo, setBillTo] = useState(today);
-  const [billSearch, setBillSearch] = useState("");
   const [billMin, setBillMin] = useState("");
   const [billMax, setBillMax] = useState("");
   const [billFilters, setBillFilters] = useState<Record<string, string>>({
@@ -215,7 +213,7 @@ function PurchasePage() {
   }, [store.brokers, model.bills]);
 
   const billRows = useMemo(() => {
-    const bq = billSearch.trim().toLowerCase();
+    const bq = search.trim().toLowerCase();
     const list = model.bills.filter((v) => {
       if (v.bill.date < bFrom || v.bill.date > bTo) return false;
       if (billFilters["supplier"] !== "all" && v.bill.partyId !== billFilters["supplier"])
@@ -242,13 +240,13 @@ function PurchasePage() {
       amount: (v) => v.bill.total,
       updated: (v) => v.bill.updatedAt ?? v.bill.date,
     });
-  }, [model.bills, bFrom, bTo, billFilters, billMin, billMax, billSearch, billSort]);
+  }, [model.bills, bFrom, bTo, billFilters, billMin, billMax, search, billSort]);
 
   function clearBillFilters() {
     setBillFilters({ supplier: "all", broker: "all", kind: "all", status: "all" });
     setBillMin("");
     setBillMax("");
-    setBillSearch("");
+    shell.setSearch("");
   }
 
   const billDateOptions = useMemo(
@@ -346,15 +344,6 @@ function PurchasePage() {
           <p className="truncate text-xs text-muted-foreground">
             {label} · {rows.length} bill{rows.length === 1 ? "" : "s"}
           </p>
-        </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-9 w-full pl-8"
-            placeholder="Search purchases"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Button
@@ -559,9 +548,8 @@ function PurchasePage() {
             customTo={billTo}
             onCustomFrom={setBillFrom}
             onCustomTo={setBillTo}
-            search={billSearch}
-            onSearch={setBillSearch}
-            searchPlaceholder="Search bill number or supplier invoice"
+            search={search}
+            onSearch={shell.setSearch}
             sort={billSort}
             onSort={setBillSort}
             filters={billFilterDefs}

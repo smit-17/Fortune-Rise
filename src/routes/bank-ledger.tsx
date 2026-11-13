@@ -1,4 +1,5 @@
-import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import { SearchResults } from "@/components/lepdo/SearchResults";
+import { useHeaderPeriodSync, usePageSearch } from "@/components/lepdo/shell-context";
 import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry } from "@/lib/lepdo/entry";
 import { EntryHistory, EntryRowMenu } from "@/components/lepdo/entry-bits";
@@ -229,15 +230,21 @@ function BankLedgerPage() {
     return out;
   }, [ledgerRows, store.masters, categoryFilter]);
 
+  const q = usePageSearch().trim().toLowerCase();
+
   const rows = useMemo(
     () =>
-      categoryFilter === "all"
-        ? ledgerRows
-        : ledgerRows.filter(
-            (t) =>
-              bankCategoryLabel(t.category, store.masters, t.customCategory) === categoryFilter,
-          ),
-    [ledgerRows, categoryFilter, store.masters],
+      ledgerRows.filter((t) => {
+        if (categoryFilter !== "all" &&
+            bankCategoryLabel(t.category, store.masters, t.customCategory) !== categoryFilter)
+          return false;
+        if (!q) return true;
+        return `${t.particulars} ${t.reference ?? ""} ${t.code} ${partyName(store.parties, t.partyId)} ${bankName(t.accountId)} ${bankCategoryLabel(t.category, store.masters, t.customCategory)} ${t.amount} ${formatDate(t.date)}`
+          .toLowerCase()
+          .includes(q);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ledgerRows, categoryFilter, store.masters, store.parties, q],
   );
 
   const postedRows = rows;
@@ -445,7 +452,10 @@ function BankLedgerPage() {
       </div>
 
       {/* Ledger */}
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <SearchResults
+        as="section"
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-navy">
             {bankFilter === "all" ? "All Banks" : bankName(bankFilter)}
@@ -471,11 +481,13 @@ function BankLedgerPage() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {rows.length === 0 && !q ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
-            {categoryFilter === "all"
-              ? "No bank entries for the selected period and bank."
-              : "No bank entries for the selected period, bank and category."}
+            {q
+              ? "No matching results found."
+              : categoryFilter === "all"
+                ? "No bank entries for the selected period and bank."
+                : "No bank entries for the selected period, bank and category."}
           </p>
         ) : (
           <>
@@ -494,6 +506,16 @@ function BankLedgerPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-3 py-8 text-center text-sm text-muted-foreground"
+                      >
+                        No matching results found.
+                      </td>
+                    </tr>
+                  ) : null}
                   {rows.map((t) => (
                     <tr key={t.id} className="border-t border-border align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-foreground">
@@ -576,7 +598,7 @@ function BankLedgerPage() {
             </ul>
           </>
         )}
-      </section>
+      </SearchResults>
 
       <BankEntryForm
         open={formOpen}
@@ -598,7 +620,10 @@ function BankLedgerPage() {
               {[
                 ["Date", formatDate(viewing.date)],
                 ["Bank", bankName(viewing.accountId)],
-                ["Category", bankCategoryLabel(viewing.category, store.masters, viewing.customCategory)],
+                [
+                  "Category",
+                  bankCategoryLabel(viewing.category, store.masters, viewing.customCategory),
+                ],
                 ["Transfer ID", viewing.transferGroupId ?? "—"],
                 ["Created by", viewing.createdBy],
                 ["Type", viewing.direction === "in" ? "Credit (received)" : "Debit (paid)"],
@@ -954,7 +979,8 @@ function BankEntryForm({
               </div>
               {fixed ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  This category is always {fixed === "in" ? "a credit (money in)" : "a debit (money out)"}.
+                  This category is always{" "}
+                  {fixed === "in" ? "a credit (money in)" : "a debit (money out)"}.
                 </p>
               ) : null}
             </Field>
