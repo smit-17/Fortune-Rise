@@ -1,4 +1,5 @@
 import type { Party } from "./types";
+import { PRESETS, rangeFor, type Preset } from "./period";
 
 export interface FounderAccount {
   id: string;
@@ -34,16 +35,9 @@ export const DRAWING_CATEGORIES = [
   "Other",
 ] as const;
 
-export type DrawingPreset = "month" | "quarter" | "fy" | "custom";
+export type DrawingPreset = Preset;
 
-export const DRAWING_PRESETS: { id: DrawingPreset; label: string }[] = [
-  { id: "month", label: "This Month" },
-  { id: "quarter", label: "This Quarter" },
-  { id: "fy", label: "This Financial Year" },
-  { id: "custom", label: "Custom Date" },
-];
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+export const DRAWING_PRESETS = PRESETS;
 
 export function drawingRange(
   preset: DrawingPreset,
@@ -51,17 +45,5 @@ export function drawingRange(
   from: string,
   to: string,
 ): [string, string] {
-  const d = new Date(today);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth();
-  if (preset === "custom") return [from, to];
-  if (preset === "quarter") {
-    const q = Math.floor(m / 3) * 3;
-    return [iso(new Date(Date.UTC(y, q, 1))), iso(new Date(Date.UTC(y, q + 3, 0)))];
-  }
-  if (preset === "fy") {
-    const fy = m >= 3 ? y : y - 1;
-    return [`${fy}-04-01`, `${fy + 1}-03-31`];
-  }
-  return [iso(new Date(Date.UTC(y, m, 1))), iso(new Date(Date.UTC(y, m + 1, 0)))];
+  return [...rangeFor(preset, today, from, to)];
 }

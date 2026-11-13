@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime, formatMoney, round2, todayISO } from "@/lib/lepdo/format";
 import { useLepdo } from "@/lib/lepdo/store";
+import { PRESETS as PL_PRESETS, rangeFor as plRange, type Preset as PLPreset } from "@/lib/lepdo/period";
 
 export const Route = createFileRoute("/pl")({
   head: () => ({
@@ -40,33 +41,6 @@ export const Route = createFileRoute("/pl")({
   }),
   component: ProfitLoss,
 });
-
-type PLPreset = "month" | "quarter" | "fy" | "custom";
-
-const PL_PRESETS: { id: PLPreset; label: string }[] = [
-  { id: "month", label: "This Month" },
-  { id: "quarter", label: "This Quarter" },
-  { id: "fy", label: "This Financial Year" },
-  { id: "custom", label: "Custom Date" },
-];
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-function plRange(preset: PLPreset, today: string, from: string, to: string): [string, string] {
-  const d = new Date(today);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth();
-  if (preset === "custom") return [from, to];
-  if (preset === "quarter") {
-    const qStart = Math.floor(m / 3) * 3;
-    return [iso(new Date(Date.UTC(y, qStart, 1))), iso(new Date(Date.UTC(y, qStart + 3, 0)))];
-  }
-  if (preset === "fy") {
-    const fy = m >= 3 ? y : y - 1;
-    return [`${fy}-04-01`, `${fy + 1}-03-31`];
-  }
-  return [iso(new Date(Date.UTC(y, m, 1))), iso(new Date(Date.UTC(y, m + 1, 0)))];
-}
 
 export default function ProfitLoss() {
   const store = useLepdo();

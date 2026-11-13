@@ -1,5 +1,9 @@
 # LEPDO — open tasks
 
+## Page date filters
+- [x] Standardize existing P&L, Drawings, Bank Ledger, Other Bank Ledger, Expense and Cash Book dropdowns using the unchanged header's six presets and range helper; preserve defaults, layout and calculations.
+- [x] Verified 18 concrete date-range tests and 18 import regressions; signed-in checks passed all six options and custom dates on each eligible page, original defaults and independent header selection. Existing records filtered successfully; Other Bank has no records to exercise. Excluded pages and global header source unchanged; no records written.
+
 ## Sales Reports
 - [x] Add a read-only Reports tab beside Platform-Wise using existing live data, filters, comparisons, charts, customer/platform/payment/outstanding reports and Excel/PDF export.
 - [x] Verify live reports, exports, and preservation of existing Sales views: 25 active invoices total ₹60,89,535.22 matched the database; all 12 reports, platform/search filters, invoice drilldown, XLSX/PDF downloads and mobile overflow checked; no record writes.

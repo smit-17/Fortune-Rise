@@ -1,4 +1,5 @@
 import type { BankAccount, CategoryId } from "./types";
+import { PRESETS, rangeFor, type Preset } from "./period";
 
 export interface BankMeta {
   id: string;
@@ -150,16 +151,9 @@ export function uiCategoryFromCategoryId(id: CategoryId | null): BankUiCategory 
   }
 }
 
-export type BankPreset = "month" | "prev_month" | "fy" | "custom";
+export type BankPreset = Preset;
 
-export const BANK_PRESETS: { id: BankPreset; label: string }[] = [
-  { id: "month", label: "This Month" },
-  { id: "prev_month", label: "Previous Month" },
-  { id: "fy", label: "This Financial Year" },
-  { id: "custom", label: "Custom Date Range" },
-];
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+export const BANK_PRESETS = PRESETS;
 
 export function bankRange(
   preset: BankPreset,
@@ -167,17 +161,7 @@ export function bankRange(
   from: string,
   to: string,
 ): [string, string] {
-  const d = new Date(today);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth();
-  if (preset === "custom") return [from, to];
-  if (preset === "prev_month")
-    return [iso(new Date(Date.UTC(y, m - 1, 1))), iso(new Date(Date.UTC(y, m, 0)))];
-  if (preset === "fy") {
-    const fy = m >= 3 ? y : y - 1;
-    return [`${fy}-04-01`, `${fy + 1}-03-31`];
-  }
-  return [iso(new Date(Date.UTC(y, m, 1))), iso(new Date(Date.UTC(y, m + 1, 0)))];
+  return [...rangeFor(preset, today, from, to)];
 }
 
 export function periodLabel(preset: BankPreset, from: string, to: string): string {
