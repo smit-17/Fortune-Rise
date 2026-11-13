@@ -90,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
+  const [headerChanged, setHeaderChanged] = useState(false);
   const [from, to] = useMemo(
     () => rangeFor(preset, today, customFrom, customTo),
     [preset, today, customFrom, customTo],
@@ -132,6 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         customTo,
         setCustomFrom,
         setCustomTo,
+        headerChanged,
         quickUchhina,
         setQuickUchhina,
         pageAction,
@@ -206,7 +208,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   preset === "custom" ? "col-span-4 flex-wrap lg:col-auto lg:flex-nowrap" : "",
                 )}
               >
-                <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
+                <Select value={preset} onValueChange={(v) => {
+                    setHeaderChanged(true);
+                    setPreset(v as Preset);
+                  }}>
                   <SelectTrigger
                     aria-label="Date period"
                     className="h-8 w-full min-w-0 max-w-[150px] text-xs lg:h-9 lg:w-[190px] lg:max-w-none lg:text-sm"
@@ -227,7 +232,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                       type="date"
                       aria-label="From date"
                       value={customFrom}
-                      onChange={(e) => setCustomFrom(e.target.value)}
+                      onChange={(e) => {
+                        setHeaderChanged(true);
+                        setCustomFrom(e.target.value);
+                      }}
                       className="h-8 min-w-0 flex-1 text-xs lg:h-9 lg:w-[140px] lg:flex-none lg:text-sm"
                     />
                     <span className="text-xs text-muted-foreground">to</span>
@@ -235,7 +243,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                       type="date"
                       aria-label="To date"
                       value={customTo}
-                      onChange={(e) => setCustomTo(e.target.value)}
+                      onChange={(e) => {
+                        setHeaderChanged(true);
+                        setCustomTo(e.target.value);
+                      }}
                       className="h-8 min-w-0 flex-1 text-xs lg:h-9 lg:w-[140px] lg:flex-none lg:text-sm"
                     />
                   </div>

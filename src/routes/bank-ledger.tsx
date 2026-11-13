@@ -1,3 +1,5 @@
+import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry } from "@/lib/lepdo/entry";
 import { EntryHistory, EntryRowMenu } from "@/components/lepdo/entry-bits";
 import { BankExcelImport } from "@/components/lepdo/BankExcelImport";
@@ -156,6 +158,7 @@ function BankLedgerPage() {
   const [preset, setPreset] = useState<BankPreset>("month");
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
+  useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [bankFilter, setBankFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);

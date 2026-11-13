@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import type { DrawerConfig } from "./EntryDrawer";
 import type { Preset } from "@/lib/lepdo/period";
 
@@ -14,6 +14,8 @@ export interface ShellContextValue {
   customTo: string;
   setCustomFrom: (value: string) => void;
   setCustomTo: (value: string) => void;
+  /** true once the user has changed the global header date filter */
+  headerChanged?: boolean;
   /** handler registered by the Uchhina page for the header "+ Quick Uchhina" button */
   quickUchhina: (() => void) | null;
   setQuickUchhina: (handler: (() => void) | null) => void;
@@ -28,4 +30,26 @@ export function useShell(): ShellContextValue {
   const context = useContext(ShellContext);
   if (!context) throw new Error("useShell must be used inside AppShell");
   return context;
+}
+
+/** One-way sync: header date filter -> page date filter, only after the header was changed. */
+export function useHeaderPeriodSync(
+  setPreset: (preset: Preset) => void,
+  setCustomFrom: (value: string) => void,
+  setCustomTo: (value: string) => void,
+): void {
+  const ctx = useContext(ShellContext);
+  const changed = ctx?.headerChanged;
+  const preset = ctx?.preset;
+  const from = ctx?.customFrom;
+  const to = ctx?.customTo;
+  useEffect(() => {
+    if (!changed || !preset) return;
+    setPreset(preset);
+    if (preset === "custom") {
+      if (from) setCustomFrom(from);
+      if (to) setCustomTo(to);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changed, preset, from, to]);
 }

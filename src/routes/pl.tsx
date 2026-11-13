@@ -1,3 +1,5 @@
+import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isPosted } from "@/lib/lepdo/entry";
 import { useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -48,6 +50,7 @@ export default function ProfitLoss() {
   const [preset, setPreset] = useState<PLPreset>("fy");
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
+  useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [from, to] = plRange(preset, today, customFrom, customTo);
 
   const inRange = (date: string) => date >= from && date <= to;

@@ -1,3 +1,5 @@
+import { useHeaderPeriodSync } from "@/components/lepdo/shell-context";
+import type { Preset as HeaderSyncPreset } from "@/lib/lepdo/period";
 import { isLedgerEntry, isPosted } from "@/lib/lepdo/entry";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -127,6 +129,7 @@ function ExpensePage() {
   const [preset, setPreset] = useState<BankPreset>("month");
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
+  useHeaderPeriodSync(setPreset as (p: HeaderSyncPreset) => void, setCustomFrom, setCustomTo);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [search, setSearch] = useState("");
