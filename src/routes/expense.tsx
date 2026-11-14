@@ -563,7 +563,7 @@ function ExpensePage() {
                           className={cn(
                             "text-sm",
                             sourceLabel(t) === "Unpaid"
-                              ? "font-medium text-gold"
+                              ? "font-medium text-gold-ink"
                               : "text-foreground",
                           )}
                         >

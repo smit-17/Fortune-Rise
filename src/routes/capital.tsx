@@ -1612,7 +1612,7 @@ function EmiTab() {
       <div className="rounded-xl border border-navy/25 bg-navy p-4 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-amber">
               Total Active EMI Amount
             </p>
             <p className="num mt-1 text-2xl font-bold text-navy-foreground sm:text-3xl">

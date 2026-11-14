@@ -1,3 +1,4 @@
+import { brandPrintHead } from "./brandPrint";
 import { formatDate, formatDateTime, formatMoney } from "./format";
 
 export interface CashReportRow {
@@ -77,13 +78,15 @@ export function downloadCashExcel(rows: CashReportRow[], meta: CashReportMeta) {
 }
 
 export function downloadCashPdf(rows: CashReportRow[], meta: CashReportMeta): boolean {
-  const doc = `<!doctype html><html><head><meta charset="utf-8" /><title>LEPDO ${html(meta.bookLabel)}</title>
+  const doc = `<!doctype html><html><head><meta charset="utf-8" />${brandPrintHead()}<title>LEPDO ${html(meta.bookLabel)}</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#2d2d61;padding:24px;font-size:12px}
+  body{font-family:"Inter",Arial,Helvetica,sans-serif;color:#17181C;padding:24px;font-size:12px}
+  h1,h2,h3{color:#2329A8;font-weight:600}
+  .num,td[align="right"]{font-variant-numeric:tabular-nums}
   table{width:100%;border-collapse:collapse}
-  th,td{border:1px solid #e7e8ee;padding:6px 8px;text-align:left;vertical-align:top}
-  thead th{background:#f0f1f4}
-  tfoot th{background:#e8f1ff}
+  th,td{border:1px solid #E4E4E6;padding:6px 8px;text-align:left;vertical-align:top}
+  thead th{background:#2329A8;color:#fff;font-weight:600}
+  tfoot th{background:#F2E7E1;color:#2329A8}
   td[align="right"],th[align="right"]{text-align:right}
 </style></head><body>${tableHtml(rows, meta)}
 <script>window.onload=function(){window.print()}</script></body></html>`;

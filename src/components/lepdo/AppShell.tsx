@@ -41,7 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import lepdoaccountlogo from "@/assets/lepdoaccountlogo.png";
+import { LEPDO_LOGO } from "@/assets/brand";
 import { EntryDrawer, type DrawerConfig } from "./EntryDrawer";
 import type { CategoryId } from "@/lib/lepdo/types";
 import { PRESETS, rangeFor, type Preset } from "@/lib/lepdo/period";
@@ -154,7 +154,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border bg-navy px-4">
-            <img src={lepdoaccountlogo} alt="LEPDO" className="h-7 w-auto object-contain" />
+            <img
+              src={LEPDO_LOGO.onIndigo}
+              alt="LEPDO"
+              width={150}
+              height={51}
+              className="h-auto w-[150px] shrink-0 object-contain"
+            />
             <button
               type="button"
               aria-label="Close menu"
@@ -180,7 +186,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                       : "border-transparent text-muted-foreground hover:bg-muted hover:text-navy",
                   )}
                 >
-                  <Icon className="size-[18px] shrink-0" />
+                  <Icon
+                    className={cn(
+                      "size-[18px] shrink-0",
+                      isActive ? "text-brand-orange" : "text-navy/70",
+                    )}
+                  />
                   <span className="flex-1">{item.label}</span>
                   {!item.active ? (
                     <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">

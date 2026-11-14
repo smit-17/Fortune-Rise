@@ -1,5 +1,5 @@
 import { currencySymbol, invoiceAmounts } from "./currency";
-import logoAsset from "@/assets/lepdo-logo.png.asset.json";
+import { LEPDO_LOGO } from "@/assets/brand";
 import { formatDate, round2 } from "./format";
 import type { AppSettings, Invoice, Party } from "./types";
 
@@ -296,10 +296,18 @@ export function buildInvoiceDocHtml({
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(invoice.number)} — ${esc(invoiceTitle(invoice))}</title>
 <style>
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("${absoluteUrl("/fonts/inter-latin-400-normal.woff2")}") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("${absoluteUrl("/fonts/inter-latin-ext-400-normal.woff2")}") format("woff2"); unicode-range: U+0100-02BA,U+20A0-20C0; }
+  @font-face { font-family: "Inter"; font-weight: 500; src: url("${absoluteUrl("/fonts/inter-latin-500-normal.woff2")}") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 500; src: url("${absoluteUrl("/fonts/inter-latin-ext-500-normal.woff2")}") format("woff2"); unicode-range: U+0100-02BA,U+20A0-20C0; }
+  @font-face { font-family: "Inter"; font-weight: 600; src: url("${absoluteUrl("/fonts/inter-latin-600-normal.woff2")}") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; src: url("${absoluteUrl("/fonts/inter-latin-ext-600-normal.woff2")}") format("woff2"); unicode-range: U+0100-02BA,U+20A0-20C0; }
+  @font-face { font-family: "Inter"; font-weight: 700; src: url("${absoluteUrl("/fonts/inter-latin-700-normal.woff2")}") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; src: url("${absoluteUrl("/fonts/inter-latin-ext-700-normal.woff2")}") format("woff2"); unicode-range: U+0100-02BA,U+20A0-20C0; }
   @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #eef0f5; }
-  body { font-family: "Times New Roman", Georgia, serif; color: #1b1b2b; font-size: 10.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; background: #EDEDED; }
+  body { font-family: "Inter", Arial, Helvetica, sans-serif; color: #17181C; font-size: 10.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; }
   table.doc { width: 100%; height: 297mm; border-collapse: collapse; table-layout: fixed; }
   table.doc > thead { display: table-header-group; }
@@ -308,42 +316,42 @@ export function buildInvoiceDocHtml({
   table.doc > tbody > tr > td { vertical-align: top; }
 
   /* ---------- header ---------- */
-  .band { background: #2D2D61; color: #fff; padding: 9mm 12mm 7mm; }
+  .band { background: #2329A8; color: #fff; padding: 9mm 12mm 7mm; }
   .band .in { display: flex; justify-content: space-between; align-items: center; gap: 14mm; }
   .band img { height: 76px; width: auto; display: block; }
   .meta { text-align: right; font-size: 10px; line-height: 1.7; letter-spacing: .2px; }
-  .meta .k { color: #E2AE40; letter-spacing: 1px; font-size: 8.5px; text-transform: uppercase; }
+  .meta .k { color: #FF9B29; letter-spacing: 1px; font-size: 8.5px; text-transform: uppercase; }
   .meta .v { color: #fff; }
-  .meta .addr { margin-top: 4px; color: #d9dae6; font-size: 9px; line-height: 1.5; max-width: 78mm; margin-left: auto; }
-  .rule { height: 2px; background: #E2AE40; }
+  .meta .addr { margin-top: 4px; color: #F2E7E1; font-size: 9px; line-height: 1.5; max-width: 78mm; margin-left: auto; }
+  .rule { height: 2px; background: #FF6624; }
 
   .titlewrap { text-align: center; padding: 7mm 12mm 0; }
-  .titlewrap h1 { margin: 0; font-size: 16px; letter-spacing: 6px; font-weight: 400; color: #2D2D61; text-transform: uppercase; }
-  .titlewrap .sub { margin-top: 3px; font-size: 8.5px; letter-spacing: 3px; color: #8b8ba3; text-transform: uppercase; }
-  .titlewrap .orn { width: 26mm; height: 1px; background: #E2AE40; margin: 4mm auto 0; }
+  .titlewrap h1 { margin: 0; font-size: 16px; letter-spacing: 6px; font-weight: 600; color: #2329A8; text-transform: uppercase; }
+  .titlewrap .sub { margin-top: 3px; font-size: 8.5px; letter-spacing: 3px; color: #5E636A; text-transform: uppercase; }
+  .titlewrap .orn { width: 26mm; height: 1px; background: #FF6624; margin: 4mm auto 0; }
 
   .pad { padding: 0 12mm; }
 
   /* ---------- parties ---------- */
   .parties { display: flex; gap: 12mm; margin-top: 6mm; }
   .parties > div { flex: 1 1 0; min-width: 0; }
-  .cap { font-size: 8px; letter-spacing: 2.2px; text-transform: uppercase; color: #E2AE40; padding-bottom: 2mm; border-bottom: 1px solid #e4d9bd; margin-bottom: 2.5mm; }
-  .pname { font-size: 12.5px; color: #2D2D61; letter-spacing: .3px; margin-bottom: 1.5mm; }
-  .pline { font-size: 10px; color: #40405c; line-height: 1.6; word-break: break-word; }
+  .cap { font-size: 8px; font-weight: 600; letter-spacing: 2.2px; text-transform: uppercase; color: #B83C0A; padding-bottom: 2mm; border-bottom: 1px solid #F2E7E1; margin-bottom: 2.5mm; }
+  .pname { font-size: 12.5px; font-weight: 600; color: #2329A8; letter-spacing: .3px; margin-bottom: 1.5mm; }
+  .pline { font-size: 10px; color: #3A3D44; line-height: 1.6; word-break: break-word; }
   .drow { display: flex; gap: 6px; font-size: 10px; line-height: 1.75; }
-  .drow .dk { width: 26mm; color: #7d7d96; flex: none; }
-  .drow .dv { color: #1f1f38; word-break: break-word; }
+  .drow .dk { width: 26mm; color: #5E636A; flex: none; }
+  .drow .dv { color: #17181C; word-break: break-word; }
 
   /* ---------- items ---------- */
   table.items { width: 100%; border-collapse: collapse; margin-top: 7mm; }
   table.items thead { display: table-header-group; }
-  table.items thead th { background: #2D2D61; color: #fff; font-size: 8px; letter-spacing: 1.1px; text-transform: uppercase; font-weight: 400; padding: 3mm 2.5mm; text-align: left; }
+  table.items thead th { background: #2329A8; color: #fff; font-size: 8px; letter-spacing: 1.1px; text-transform: uppercase; font-weight: 600; padding: 3mm 2.5mm; text-align: left; }
   table.items thead th.c { text-align: center; }
   table.items thead th.r { text-align: right; }
-  table.items tbody td { padding: 2.8mm 2.5mm; border-bottom: 1px solid #ecebf2; font-size: 10.5px; vertical-align: top; color: #23233b; }
-  table.items tbody tr:nth-child(even) td { background: #fafafd; }
+  table.items tbody td { padding: 2.8mm 2.5mm; border-bottom: 1px solid #EDEDED; font-size: 10.5px; vertical-align: top; color: #17181C; }
+  table.items tbody tr:nth-child(even) td { background: #FAFAFA; }
   table.items td.desc { word-break: break-word; }
-  table.items tfoot td { padding: 3mm 2.5mm; border-top: 1px solid #E2AE40; font-size: 10px; color: #2D2D61; }
+  table.items tfoot td { padding: 3mm 2.5mm; border-top: 1px solid #FF6624; font-size: 10px; color: #2329A8; }
   .c { text-align: center; }
   .r { text-align: right; }
   .n { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -352,28 +360,28 @@ export function buildInvoiceDocHtml({
   /* ---------- totals ---------- */
   .totals { display: flex; justify-content: flex-end; margin-top: 5mm; page-break-inside: avoid; break-inside: avoid; }
   .totals .box { width: 82mm; }
-  .srow { display: flex; justify-content: space-between; gap: 8mm; font-size: 10.5px; padding: 1.8mm 0; color: #40405c; border-bottom: 1px solid #f0eef6; }
-  .grand { display: flex; justify-content: space-between; gap: 8mm; align-items: baseline; background: #2D2D61; color: #fff; padding: 3.2mm 4mm; margin-top: 2.5mm; border-bottom: 2px solid #E2AE40; }
-  .grand .lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #E2AE40; }
+  .srow { display: flex; justify-content: space-between; gap: 8mm; font-size: 10.5px; padding: 1.8mm 0; color: #3A3D44; border-bottom: 1px solid #EDEDED; }
+  .grand { display: flex; justify-content: space-between; gap: 8mm; align-items: baseline; background: #2329A8; color: #fff; padding: 3.2mm 4mm; margin-top: 2.5mm; border-bottom: 2px solid #FF6624; }
+  .grand .lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #FF9B29; }
   .grand .val { font-size: 14px; letter-spacing: .5px; }
-  .eqv { text-align: right; font-size: 9px; color: #7d7d96; margin-top: 1.5mm; }
+  .eqv { text-align: right; font-size: 9px; color: #5E636A; margin-top: 1.5mm; }
 
-  .words { margin-top: 6mm; padding: 3.5mm 4mm; border-top: 1px solid #E2AE40; border-bottom: 1px solid #E2AE40; background: #fdfbf6; page-break-inside: avoid; }
-  .words .cap2 { font-size: 8px; letter-spacing: 2.2px; text-transform: uppercase; color: #a08442; }
-  .words b { display: block; margin-top: 1.5mm; font-size: 10.5px; letter-spacing: .4px; color: #2D2D61; font-weight: 700; }
+  .words { margin-top: 6mm; padding: 3.5mm 4mm; border-top: 1px solid #FF6624; border-bottom: 1px solid #FF6624; background: #FBF5F2; page-break-inside: avoid; }
+  .words .cap2 { font-size: 8px; font-weight: 600; letter-spacing: 2.2px; text-transform: uppercase; color: #B83C0A; }
+  .words b { display: block; margin-top: 1.5mm; font-size: 10.5px; letter-spacing: .4px; color: #2329A8; font-weight: 700; }
 
-  .notes { margin-top: 6mm; font-size: 9.5px; color: #4a4a63; line-height: 1.65; }
-  .notes .t { color: #2D2D61; }
+  .notes { margin-top: 6mm; font-size: 9.5px; color: #45484F; line-height: 1.65; }
+  .notes .t { color: #2329A8; }
   .notes p { margin: 0 0 1.5mm; white-space: pre-wrap; }
 
   /* ---------- closing ---------- */
   .closing { display: flex; justify-content: space-between; align-items: flex-end; gap: 14mm; padding: 0 12mm 6mm; page-break-inside: avoid; break-inside: avoid; }
-  .thanks { max-width: 96mm; font-size: 10px; color: #4a4a63; line-height: 1.6; font-style: italic; }
+  .thanks { max-width: 96mm; font-size: 10px; color: #45484F; line-height: 1.6; }
   .sign { width: 58mm; text-align: center; }
   .sign .sp { height: 16mm; }
-  .sign .line { border-top: 1px solid #2D2D61; padding-top: 2mm; font-size: 10.5px; color: #2D2D61; }
-  .sign .cp { font-size: 8px; letter-spacing: 1.4px; text-transform: uppercase; color: #8b8ba3; margin-top: 1mm; }
-  .site { background: #2D2D61; color: #E2AE40; text-align: center; letter-spacing: 5px; font-size: 9.5px; padding: 4mm; border-top: 2px solid #E2AE40; }
+  .sign .line { border-top: 1px solid #2329A8; padding-top: 2mm; font-size: 10.5px; color: #2329A8; }
+  .sign .cp { font-size: 8px; letter-spacing: 1.4px; text-transform: uppercase; color: #5E636A; margin-top: 1mm; }
+  .site { background: #2329A8; color: #FF9B29; text-align: center; letter-spacing: 5px; font-size: 9.5px; padding: 4mm; border-top: 2px solid #FF6624; }
   @media print { html, body { background: #fff; } .sheet { width: auto; min-height: 0; margin: 0; } }
 </style></head>
 <body>
@@ -382,7 +390,7 @@ export function buildInvoiceDocHtml({
   <thead><tr><td>
     <div class="band">
       <div class="in">
-        <img src="${esc(settings.branding.logoDataUrl?.trim() || absoluteUrl(logoAsset.url))}" alt="LEPDO" />
+        <img src="${esc(settings.branding.logoDataUrl?.trim() || absoluteUrl(LEPDO_LOGO.onIndigo))}" alt="LEPDO" />
         <div class="meta">
           <div><span class="k">IEC</span> <span class="v">${esc(IEC)}</span></div>
           <div><span class="k">GSTIN</span> <span class="v">${esc(b.gstin || HEAD_GSTIN)}</span></div>

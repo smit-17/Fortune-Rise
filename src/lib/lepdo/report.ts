@@ -1,3 +1,4 @@
+import { brandPrintHead } from "./brandPrint";
 import { formatDate, formatMoney, formatDateTime } from "./format";
 
 export interface ReportRow {
@@ -124,13 +125,15 @@ export function downloadExcel(rows: ReportRow[], meta: ReportMeta) {
 }
 
 export function downloadPdf(rows: ReportRow[], meta: ReportMeta) {
-  const doc = `<!doctype html><html><head><meta charset="utf-8" /><title>LEPDO Bank Ledger Report</title>
+  const doc = `<!doctype html><html><head><meta charset="utf-8" />${brandPrintHead()}<title>LEPDO Bank Ledger Report</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#2d2d61;padding:24px;font-size:12px}
+  body{font-family:"Inter",Arial,Helvetica,sans-serif;color:#17181C;padding:24px;font-size:12px}
+  h1,h2,h3{color:#2329A8;font-weight:600}
+  .num,td[align="right"]{font-variant-numeric:tabular-nums}
   table{width:100%;border-collapse:collapse}
-  th,td{border:1px solid #d7d7e2;padding:6px 8px;text-align:left;vertical-align:top}
-  thead th{background:#f4f5f7}
-  tfoot th{background:#fff6d8}
+  th,td{border:1px solid #E4E4E6;padding:6px 8px;text-align:left;vertical-align:top}
+  thead th{background:#2329A8;color:#fff;font-weight:600}
+  tfoot th{background:#F2E7E1;color:#2329A8}
   td[align="right"],th[align="right"]{text-align:right}
 </style></head><body>${tableHtml(rows, meta)}
 <script>window.onload=function(){window.print()}</script></body></html>`;

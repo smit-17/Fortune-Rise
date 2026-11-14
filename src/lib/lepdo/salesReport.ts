@@ -1,3 +1,4 @@
+import { brandPrintHead } from "./brandPrint";
 import { formatCurrency, invoiceAmounts } from "./currency";
 import { formatDate, formatDateTime, formatMoney } from "./format";
 import { STATUS_LABEL, type CustomerView, type InvoiceView, type LedgerRow } from "./sales";
@@ -148,16 +149,17 @@ export function downloadSalesPdf(report: SalesReportKind, periodLabel: string): 
 }
 
 export function printHtml(title: string, html: string): boolean {
-  const doc = `<!doctype html><html><head><meta charset="utf-8" /><title>${esc(title)}</title>
+  const doc = `<!doctype html><html><head><meta charset="utf-8" />${brandPrintHead()}<title>${esc(title)}</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#2D2D61;padding:24px;font-size:12px}
-  h1{font-size:18px;margin:0 0 2px}
-  h2{font-size:14px;margin:0 0 8px;font-weight:600}
-  h3{font-size:13px;margin:18px 0 6px}
+  body{font-family:"Inter",Arial,Helvetica,sans-serif;color:#17181C;padding:24px;font-size:12px}
+  .num,td[align="right"]{font-variant-numeric:tabular-nums}
+  h1{font-size:18px;margin:0 0 2px;color:#2329A8;font-weight:700}
+  h2{font-size:14px;margin:0 0 8px;font-weight:600;color:#2329A8}
+  h3{font-size:13px;margin:18px 0 6px;color:#2329A8;font-weight:600}
   table{width:100%;border-collapse:collapse;margin-bottom:10px}
-  th,td{border:1px solid #E7E8EE;padding:6px 8px;text-align:left;vertical-align:top}
-  thead th{background:#E8F1FF}
-  tfoot th{background:#FFF3DD}
+  th,td{border:1px solid #E4E4E6;padding:6px 8px;text-align:left;vertical-align:top}
+  thead th{background:#2329A8;color:#fff;font-weight:600}
+  tfoot th{background:#F2E7E1;color:#2329A8}
   td[align="right"],th[align="right"]{text-align:right}
 </style></head><body>${html}
 <script>window.onload=function(){window.print()}</script></body></html>`;

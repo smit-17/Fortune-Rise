@@ -1505,9 +1505,9 @@ const PIE_COLORS = [
   "var(--color-chart-3)",
   "var(--color-chart-4)",
   "var(--color-chart-5)",
-  "#8fb4e3",
-  "#c9a7e8",
-  "#f2b8c6",
+  "#8E92D9",
+  "#FFB08E",
+  "#7B8087",
 ];
 
 function sumByLabel<T>(rows: T[], keyFn: (r: T) => string, valFn: (r: T) => number) {

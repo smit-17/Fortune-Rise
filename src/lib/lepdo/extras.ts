@@ -299,12 +299,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
     usaAddress: "Elmwood Park, New Jersey, USA",
   },
   branding: {
-    primary: "#2D2D61",
-    accent: "#E2AE40",
+    primary: "#2329A8",
+    accent: "#F2E7E1",
     font: "System / Inter",
     invoiceHeader: "LEPDO — Diamonds & Jewellery",
     invoiceFooter: "Thank you for your business.",
-    pastel: "#F3F4FB",
+    pastel: "#FAF7F5",
     logoDataUrl: "",
   },
   invoice: {

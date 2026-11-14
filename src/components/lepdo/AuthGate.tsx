@@ -3,7 +3,7 @@ import { Loader2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import lepdoaccountlogo from "@/assets/lepdoaccountlogo.png";
+import { LEPDO_LOGO } from "@/assets/brand";
 import { useAuth } from "@/lib/auth/auth";
 import { changeOwnPassword, sendPasswordReset } from "@/lib/auth/adminApi";
 
@@ -19,8 +19,14 @@ function Frame({
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-[400px] rounded-2xl border border-border bg-card p-6 shadow-lg">
-        <div className="mb-5 flex items-center justify-center rounded-xl bg-navy px-4 py-3">
-          <img src={lepdoaccountlogo} alt="LEPDO" className="h-8 w-auto object-contain" />
+        <div className="mb-5 flex items-center justify-center rounded-xl bg-navy px-6 py-6">
+          <img
+            src={LEPDO_LOGO.onIndigo}
+            alt="LEPDO"
+            width={180}
+            height={61}
+            className="h-auto w-[180px] object-contain"
+          />
         </div>
         <h1 className="text-lg font-semibold text-navy">{title}</h1>
         {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}
@@ -219,7 +225,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 export function AccessDenied({ what = "this page" }: { what?: string }) {
   return (
     <div className="mx-auto max-w-md rounded-xl border border-border bg-card p-6 text-center">
-      <ShieldAlert className="mx-auto size-7 text-gold" />
+      <ShieldAlert className="mx-auto size-7 text-gold-ink" />
       <h2 className="mt-3 text-base font-semibold text-navy">You don't have access to {what}</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         Ask an administrator to give you permission for this section.

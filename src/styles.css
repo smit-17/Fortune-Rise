@@ -4,8 +4,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ------------------------------------------------------------------
+ * LEPDO typography — Inter (self-hosted from /public/fonts, no CDN).
+ * latin + latin-ext subsets (latin-ext carries the ₹ sign).
+ * ------------------------------------------------------------------ */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/inter-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/inter-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/inter-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/inter-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/inter-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/inter-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/inter-latin-ext-600-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/inter-latin-ext-700-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+
 @theme inline {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-ink: var(--brand-orange-ink);
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-amber: var(--brand-amber);
+  --color-gold-ink: var(--gold-ink);
   --color-navy: var(--navy);
   --color-navy-foreground: var(--navy-foreground);
   --color-gold: var(--gold);
@@ -139,34 +159,65 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * ==================================================================
+ * LEPDO design tokens — Brand Guidelines, Nov 2026 (p.18 Colour palette)
+ * Every colour in the app resolves from here. Existing token NAMES are
+ * kept (navy / gold / sl-* …) so no component logic had to change; only
+ * their values were moved onto the LEPDO palette.
+ * ==================================================================
+ */
 :root {
+  /* ---- Official primary palette ---- */
+  --brand-orange: #FF6624;   /* Lead colour  — accents, highlights, active markers */
+  --brand-indigo: #2329A8;   /* Anchor       — headings, navigation, primary buttons */
+  --brand-cream: #F2E7E1;    /* Ground       — soft surfaces, selected states */
+  --brand-blue: #355CF5;     /* Support      — interactive, focus, info, chart series */
+  --brand-amber: #FF9B29;    /* Highlight    — attention, pending, warnings */
+  /* ---- Official neutrals ---- */
+  --brand-black: #000000;
+  --brand-dark-grey: #7B8087;
+  --brand-mid-grey: #CACBCC;
+  --brand-light-grey: #EDEDED;
+  --brand-white: #FFFFFF;
+  /* ---- Accessibility shades (derived; for small text only) ----
+     Brand Orange on white is 2.9:1 and Dark Grey is 4.0:1, both below
+     WCAG AA for small text. These deeper shades keep the hue and pass AA. */
+  --brand-orange-ink: #B83C0A;  /* 5.7:1 on white, 4.7:1 on cream */
+  --brand-grey-ink: #5E636A;    /* 6.1:1 on white */
+
   --radius: 0.625rem;
-  --navy: oklch(0.31 0.09 285);
-  --navy-foreground: oklch(0.99 0.01 100);
-  --gold: oklch(0.77 0.13 80);
-  --gold-soft: oklch(0.95 0.1 105);
-  --gold-tint: oklch(0.975 0.035 100);
 
-  --background: oklch(0.985 0.002 285);
-  --foreground: oklch(0.24 0.015 280);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.015 280);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.015 280);
-  --primary: oklch(0.31 0.09 285);
-  --primary-foreground: oklch(0.99 0.01 100);
-  --secondary: oklch(0.96 0.005 285);
-  --secondary-foreground: oklch(0.31 0.09 285);
-  --muted: oklch(0.96 0.005 285);
-  --muted-foreground: oklch(0.55 0.02 265);
-  --accent: oklch(0.975 0.035 100);
-  --accent-foreground: oklch(0.31 0.09 285);
-  --destructive: oklch(0.5 0.18 22);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.006 285);
-  --input: oklch(0.92 0.006 285);
-  --ring: oklch(0.77 0.13 80);
+  /* legacy token names → LEPDO values */
+  --navy: var(--brand-indigo);
+  --navy-foreground: #FFFFFF;
+  --gold: var(--brand-orange);
+  --gold-ink: var(--brand-orange-ink);
+  --gold-soft: #FFE1D3;
+  --gold-tint: var(--brand-cream);
 
+  --background: #FAF7F5;          /* cream-tinted canvas */
+  --foreground: #17181C;
+  --card: #FFFFFF;
+  --card-foreground: #17181C;
+  --popover: #FFFFFF;
+  --popover-foreground: #17181C;
+  --primary: var(--brand-indigo);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--brand-light-grey);
+  --secondary-foreground: var(--brand-indigo);
+  --muted: #F3F3F4;
+  --muted-foreground: var(--brand-grey-ink);
+  --accent: var(--brand-cream);
+  --accent-foreground: var(--brand-indigo);
+  --destructive: #C8261C;
+  --destructive-foreground: #FFFFFF;
+  --border: #E4E4E6;
+  --input: var(--brand-mid-grey);
+  --ring: var(--brand-blue);
+
+  /* ---- Financial semantics (kept functional: green = in / paid,
+          red = out / overdue, amber = pending / part) ---- */
   --pos: oklch(0.47 0.11 158);
   --pos-bg: oklch(0.96 0.03 155);
   --neg: oklch(0.5 0.18 22);
@@ -174,86 +225,86 @@
 
   --cat-sale: oklch(0.47 0.11 158);
   --cat-sale-bg: oklch(0.96 0.03 155);
-  --cat-purchase: oklch(0.48 0.12 60);
-  --cat-purchase-bg: oklch(0.97 0.03 80);
+  --cat-purchase: var(--brand-orange-ink);
+  --cat-purchase-bg: #FFF0E8;
   --cat-expense: oklch(0.5 0.18 22);
   --cat-expense-bg: oklch(0.95 0.02 20);
   --cat-uchhina: oklch(0.47 0.19 290);
   --cat-uchhina-bg: oklch(0.94 0.03 300);
-  --cat-investment: oklch(0.45 0.14 260);
-  --cat-investment-bg: oklch(0.95 0.03 255);
+  --cat-investment: var(--brand-indigo);
+  --cat-investment-bg: #ECEDFA;
   --cat-drawing: oklch(0.47 0.16 350);
   --cat-drawing-bg: oklch(0.95 0.03 340);
-  --cat-transfer: oklch(0.48 0.08 195);
-  --cat-transfer-bg: oklch(0.96 0.02 190);
-  --cat-refund: oklch(0.47 0.1 85);
-  --cat-refund-bg: oklch(0.97 0.04 95);
-  --cat-other: oklch(0.45 0.015 270);
-  --cat-other-bg: oklch(0.95 0.004 285);
+  --cat-transfer: #2B48C8;
+  --cat-transfer-bg: #EBEFFE;
+  --cat-refund: #9A5200;
+  --cat-refund-bg: #FFF2E0;
+  --cat-other: var(--brand-grey-ink);
+  --cat-other-bg: #F3F3F4;
 
   --uch-taken: #6941c6;
   --uch-taken-bg: #f1eafe;
   --uch-returned: #18794e;
   --uch-returned-bg: #e7f7ee;
-  --uch-out: #a35b00;
-  --uch-out-bg: #fff3dd;
-  --uch-advance: #2457a7;
-  --uch-advance-bg: #e8f1ff;
+  --uch-out: #9A5200;
+  --uch-out-bg: #FFF2E0;
+  --uch-advance: #2B48C8;
+  --uch-advance-bg: #EBEFFE;
   --uch-pay: #b42318;
   --uch-pay-bg: #fdecea;
 
   --pl-green: #e7f7ee;
-  --pl-orange: #fff3dd;
+  --pl-orange: #FFF2E0;
   --pl-red: #fdebec;
-  --pl-blue: #e8f1ff;
+  --pl-blue: #EBEFFE;
   --pl-purple: #f1eafe;
   --pl-pink: #ffeaf2;
-  --pl-yellow: #fff6d8;
+  --pl-yellow: #FFF6E6;
   --pl-profit: #ddf5e7;
   --pl-loss: #fadadd;
-  --pl-grey: #f4f5f7;
+  --pl-grey: #F3F3F4;
   --pl-import-added: #e2f6e9;
 
-  --sl-total: #2457a7;
-  --sl-total-bg: #e8f1ff;
+  --sl-total: var(--brand-indigo);
+  --sl-total-bg: #ECEDFA;
   --sl-paid: #18794e;
   --sl-paid-bg: #e7f7ee;
   --sl-pending: #b4232c;
   --sl-pending-bg: #fdebec;
-  --sl-advance: #6941c6;
-  --sl-advance-bg: #f1eafe;
-  --sl-part: #a35b00;
-  --sl-part-bg: #fff3dd;
-  --sl-customer: #8a6500;
-  --sl-customer-bg: #fff6d8;
-  --sl-settled: #525866;
-  --sl-settled-bg: #f0f1f4;
-  --pu-total: #a2510b;
-  --pu-total-bg: #fff0e2;
+  --sl-advance: #2B48C8;
+  --sl-advance-bg: #EBEFFE;
+  --sl-part: #9A5200;
+  --sl-part-bg: #FFF2E0;
+  --sl-customer: var(--brand-orange-ink);
+  --sl-customer-bg: #FBF5F2;
+  --sl-settled: var(--brand-grey-ink);
+  --sl-settled-bg: #F3F3F4;
+  --pu-total: var(--brand-orange-ink);
+  --pu-total-bg: #FFF0E8;
   --pu-paid: #18794e;
   --pu-paid-bg: #e7f7ee;
   --pu-pending: #b4232c;
   --pu-pending-bg: #fdebec;
-  --pu-advance: #6941c6;
-  --pu-advance-bg: #f1eafe;
+  --pu-advance: #2B48C8;
+  --pu-advance-bg: #EBEFFE;
   --pu-supplier: #0f6f78;
   --pu-supplier-bg: #e3f6f7;
 
+  /* ---- Charts: Indigo, Blue, (profit green), Orange, Amber ---- */
+  --chart-1: var(--brand-indigo);
+  --chart-2: var(--brand-blue);
+  --chart-3: oklch(0.55 0.13 158);
+  --chart-4: var(--brand-orange);
+  --chart-5: var(--brand-amber);
 
-  --chart-1: oklch(0.31 0.09 285);
-  --chart-2: oklch(0.77 0.13 80);
-  --chart-3: oklch(0.47 0.11 158);
-  --chart-4: oklch(0.5 0.18 22);
-  --chart-5: oklch(0.47 0.19 290);
-
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.31 0.09 285);
-  --sidebar-primary: oklch(0.31 0.09 285);
-  --sidebar-primary-foreground: oklch(0.99 0.01 100);
-  --sidebar-accent: oklch(0.975 0.035 100);
-  --sidebar-accent-foreground: oklch(0.31 0.09 285);
-  --sidebar-border: oklch(0.92 0.006 285);
-  --sidebar-ring: oklch(0.77 0.13 80);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: var(--brand-indigo);
+  --sidebar-primary: var(--brand-indigo);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: var(--brand-cream);
+  --sidebar-accent-foreground: var(--brand-indigo);
+  --sidebar-border: #E4E4E6;
+  --sidebar-ring: var(--brand-blue);
 }
 
 @layer base {
@@ -270,6 +321,26 @@
   table {
     font-variant-numeric: tabular-nums;
   }
+
+  input[type="number"],
+  input[inputmode="decimal"],
+  input[inputmode="numeric"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* LEPDO iconography (guidelines p.24): single-weight outline, round
+     caps & joins, no fills. 3px on a 64px grid scales to ~1.1px at 24px,
+     which is too faint for compact UI controls, so interface icons use a
+     uniform 1.75 stroke that keeps the same light, rounded character. */
+  svg.lucide {
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  :focus-visible {
+    outline-color: var(--brand-blue);
+  }
 }
 
 @utility num {
@@ -277,12 +348,12 @@
 }
 
 .dashboard-view {
-  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0;
 }
 
 .dashboard-heading {
-  font-family: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }

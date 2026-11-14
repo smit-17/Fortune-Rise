@@ -1,3 +1,4 @@
+import { applyBrandFont } from './brandPdfFont';
 import type { ExportTable } from './exportTable';
 
 export async function exportAdvancedReport(table: ExportTable, format: 'excel' | 'pdf') {
@@ -28,12 +29,16 @@ export async function exportAdvancedReport(table: ExportTable, format: 'excel' |
   }
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
   const doc = new jsPDF({ orientation: table.columns.length > 6 ? 'landscape' : 'portrait' });
+  const font = await applyBrandFont(doc);
   // Embedded standard PDF fonts are ASCII; INR column headings retain unambiguous currency labels.
   const text = (v: unknown) => String(v ?? '').replace(/₹/g, 'INR ').replace(/[–—]/g, '-').replace(/[^\x20-\x7E\n]/g, '');
+  doc.setFont(font, 'bold'); doc.setTextColor(35, 41, 168);
   doc.setFontSize(15); doc.text(text(table.title), 14, 16);
+  doc.setFont(font, 'normal'); doc.setTextColor(94, 99, 106);
   doc.setFontSize(8); doc.text(text(table.subtitle), 14, 23);
+  doc.setTextColor(23, 24, 28);
   const summary = (table.summary ?? []).map(s => `${text(s.label)}: ${text(s.value)}`);
   summary.forEach((line, i) => doc.text(line, 14, 30 + i * 5));
-  autoTable(doc, { startY: 35 + summary.length * 5, head: [table.columns.map(c => text(c.label))], body: table.rows.map(r => table.columns.map(c => text(c.money ? Number(r[c.key] ?? 0).toFixed(2) : r[c.key]))), styles: { fontSize: 7, overflow: 'linebreak' }, horizontalPageBreak: true });
+  autoTable(doc, { startY: 35 + summary.length * 5, head: [table.columns.map(c => text(c.label))], body: table.rows.map(r => table.columns.map(c => text(c.money ? Number(r[c.key] ?? 0).toFixed(2) : r[c.key]))), styles: { fontSize: 7, overflow: 'linebreak', font, textColor: [23, 24, 28], lineColor: [228, 228, 230], lineWidth: 0.1 }, headStyles: { fillColor: [35, 41, 168], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [250, 247, 245] }, columnStyles: Object.fromEntries(table.columns.map((c, i) => [i, c.money ? { halign: 'right' as const } : {}])), horizontalPageBreak: true });
   doc.save(`${filename}.pdf`);
 }

@@ -1,5 +1,11 @@
 # Welcome to your Lovable project
 
+> **LEPDO brand refresh, November 2026.** This version uses the official LEPDO
+> logo, colour palette, Inter typography and icon style. The change is visual only.
+> See [`docs/rebrand/README_REBRAND.md`](docs/rebrand/README_REBRAND.md),
+> [`CHANGED_FILES.md`](docs/rebrand/CHANGED_FILES.md) and
+> [`TESTING_REPORT.md`](docs/rebrand/TESTING_REPORT.md).
+
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable

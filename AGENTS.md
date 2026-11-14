@@ -20,3 +20,5 @@
 - Role-permission SELECT policies must allow only assigned-role rows or callers with server-validated users.view permission; this preserves access loading without exposing every role to arbitrary signed-in users.
 - Existing eligible page-level date filters reuse period.ts presets and rangeFor through their existing helper interfaces; one source keeps header and page calendar conventions consistent without coupling their selected values.
 - Search result frames use the shared SearchResults presentation wrapper to retain their measured unsearched height while searching, without stretching table rows or changing data filters.
+
+- Keep shared printable-report branding in brandPrint and PDF font loading in brandPdfFont; this centralizes presentation without changing report content or accounting.

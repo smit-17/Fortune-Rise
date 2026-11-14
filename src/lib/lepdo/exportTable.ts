@@ -1,3 +1,4 @@
+import { brandPrintHead } from "./brandPrint";
 import { toast } from "sonner";
 import { formatDate, formatMoney } from "./format";
 
@@ -88,17 +89,17 @@ export function tableHtml(t: ExportTable): string {
         .map((s) => `<span><b>${enc(s.label)}:</b> ${enc(s.value)}</span>`)
         .join("")}</div>`
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${enc(t.title)}</title>
+  return `<!doctype html><html><head><meta charset="utf-8">${brandPrintHead()}<title>${enc(t.title)}</title>
 <style>
-body{font-family:Arial,Helvetica,sans-serif;color:#1b1b1f;padding:22px}
-h1{font-size:18px;margin:0;color:#2d2d61}
-p.sub{margin:4px 0 14px;font-size:12px;color:#666}
+body{font-family:"Inter",Arial,Helvetica,sans-serif;color:#17181C;padding:22px}
+h1{font-size:18px;margin:0;color:#2329A8;font-weight:700}
+p.sub{margin:4px 0 14px;font-size:12px;color:#5E636A}
 .sum{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;font-size:12px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{border:1px solid #dcdce3;padding:6px 8px;text-align:left}
-th{background:#f4f5f7;color:#2d2d61}
+th,td{border:1px solid #E4E4E6;padding:6px 8px;text-align:left}
+th{background:#2329A8;color:#fff;font-weight:600}
 td.r,th.r{text-align:right}
-tr.tot td{background:#fff6d8;font-weight:700}
+tr.tot td{background:#F2E7E1;color:#2329A8;font-weight:700}
 .num{font-variant-numeric:tabular-nums}
 @media print{body{padding:0}}
 </style></head><body>

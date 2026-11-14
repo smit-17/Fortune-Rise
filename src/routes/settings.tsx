@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import lepdoLogo from "@/assets/lepdo-logo.png.asset.json";
+import { LEPDO_LOGO } from "@/assets/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Eye,
@@ -287,7 +287,7 @@ function Settings() {
               />
               <ColorField
                 label="Card pastel background"
-                value={draft.branding.pastel ?? "#F3F4FB"}
+                value={draft.branding.pastel ?? "#FAF7F5"}
                 onChange={(v) => patch("branding", { pastel: v })}
               />
               <TextField
@@ -310,11 +310,23 @@ function Settings() {
               </Field>
               <Field label="Logo" className="sm:col-span-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <img
-                    src={draft.branding.logoDataUrl || lepdoLogo.url}
-                    alt="Logo preview"
-                    className="h-12 w-12 rounded-md border border-border bg-muted/40 object-contain"
-                  />
+                  {draft.branding.logoDataUrl ? (
+                    <img
+                      src={draft.branding.logoDataUrl}
+                      alt="Logo preview"
+                      className="h-12 w-12 rounded-md border border-border bg-muted/40 object-contain"
+                    />
+                  ) : (
+                    <span className="inline-flex rounded-md bg-navy px-5 py-4">
+                      <img
+                        src={LEPDO_LOGO.onIndigo}
+                        alt="LEPDO logo preview"
+                        width={150}
+                        height={51}
+                        className="h-auto w-[150px] object-contain"
+                      />
+                    </span>
+                  )}
                   {!draft.branding.logoDataUrl ? (
                     <span className="text-[11px] text-muted-foreground">
                       Using the default LEPDO logo
